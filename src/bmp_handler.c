@@ -22,7 +22,7 @@ struct t_bmp_header
 	unsigned short bmpSignature; // Signature of BMP file
 	unsigned short bmpReserverd1; // Reserved for application
 	unsigned short bmpReserver2; // Reserved for application
-	// struct t_bmp_info_header info_header; // Rest of BMP Header
+	struct t_bmp_info_header info_header; // Rest of BMP Header
 };
 
 struct t_bmp_channels
