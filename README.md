@@ -1,5 +1,10 @@
 # Image decompression/compression project
 
+### Contributors
+
++ Paulo Ricardo J. Miranda
+
+
 ### Installation
 #### NOTE
 To execute the commands below, make sure you have the GNU Compiler Collection (GCC). In Linux, probaly you have it.
