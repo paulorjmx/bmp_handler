@@ -71,7 +71,8 @@ BMP_FILE *bmp_read_file(const char *file_name)
                     fread(&bmp->header.info_header.bmpYPixelsPerMeter, sizeof(unsigned int), 1, arq);
                     fread(&bmp->header.info_header.bmpTotalColors, sizeof(unsigned int), 1, arq);
                     fread(&bmp->header.info_header.bmpImportantColors, sizeof(unsigned int), 1, arq);
-                    // Read pixels 
+                                        
+                    // Alloc pixels
                     bmp->channels.r = (unsigned char **) malloc(sizeof(unsigned char *) * bmp->header.info_header.bmpHeight);
                     bmp->channels.g = (unsigned char **) malloc(sizeof(unsigned char *) * bmp->header.info_header.bmpHeight);
                     bmp->channels.b = (unsigned char **) malloc(sizeof(unsigned char *) * bmp->header.info_header.bmpHeight);
@@ -80,6 +81,18 @@ BMP_FILE *bmp_read_file(const char *file_name)
                         bmp->channels.r[i] = (unsigned char *) malloc(sizeof(unsigned char) * bmp->header.info_header.bmpWidth);
                         bmp->channels.g[i] = (unsigned char *) malloc(sizeof(unsigned char) * bmp->header.info_header.bmpWidth);
                         bmp->channels.b[i] = (unsigned char *) malloc(sizeof(unsigned char) * bmp->header.info_header.bmpWidth);
+                    }
+
+                    // Read pixels
+                    fseek(arq, bmp->header.bmpPixelDataOffset, SEEK_SET);
+                    for(int i = 0; i < bmp->header.info_header.bmpHeight; i++)
+                    {
+                        for(int j = 0; j < bmp->header.info_header.bmpWidth; j++)
+                        {
+                            fread(&bmp->channels.b[i][j], sizeof(unsigned char), 1, arq);
+                            fread(&bmp->channels.g[i][j], sizeof(unsigned char), 1, arq);
+                            fread(&bmp->channels.r[i][j], sizeof(unsigned char), 1, arq);
+                        }
                     }
                 }
                 else 
@@ -103,6 +116,65 @@ BMP_FILE *bmp_read_file(const char *file_name)
         printf("ERROR: Type a file name!\n");
     }
     return bmp;
+}
+
+int bmp_write_file(const char *file_name, BMP_FILE *bmp)
+{
+    int err = 0;
+    if(file_name != NULL)
+    {
+        if(bmp != NULL)
+        {
+            FILE *arq = fopen(file_name, "wb");
+            if(arq != NULL)
+            {
+                fwrite(&bmp->header.bmpSignature, sizeof(unsigned short), 1, arq);
+                fwrite(&bmp->header.bmpFileSize, sizeof(unsigned int), 1, arq);
+                fwrite(&bmp->header.bmpReserverd1, sizeof(unsigned short), 1, arq);
+                fwrite(&bmp->header.bmpReserverd2, sizeof(unsigned short), 1, arq);
+                fwrite(&bmp->header.bmpPixelDataOffset, sizeof(unsigned int), 1, arq);
+                fwrite(&bmp->header.info_header.bmpHeaderSize, sizeof(unsigned int), 1, arq);
+                fwrite(&bmp->header.info_header.bmpWidth, sizeof(unsigned int), 1, arq);
+                fwrite(&bmp->header.info_header.bmpHeight, sizeof(unsigned int), 1, arq);
+                fwrite(&bmp->header.info_header.bmpPlanes, sizeof(unsigned short), 1, arq);
+                fwrite(&bmp->header.info_header.bmpBitsPerPixel, sizeof(unsigned short), 1, arq);
+                fwrite(&bmp->header.info_header.bmpCompression, sizeof(unsigned int), 1, arq);
+                fwrite(&bmp->header.info_header.bmpImageSize, sizeof(unsigned int), 1, arq);
+                fwrite(&bmp->header.info_header.bmpXPixelsPerMeter, sizeof(unsigned int), 1, arq);
+                fwrite(&bmp->header.info_header.bmpYPixelsPerMeter, sizeof(unsigned int), 1, arq);
+                fwrite(&bmp->header.info_header.bmpTotalColors, sizeof(unsigned int), 1, arq);
+                fwrite(&bmp->header.info_header.bmpImportantColors, sizeof(unsigned int), 1, arq);
+                
+                fseek(arq, bmp->header.bmpPixelDataOffset, SEEK_SET);
+                for(int i = 0; i < bmp->header.info_header.bmpHeight; i++)
+                {
+                    for(int j = 0; j < bmp->header.info_header.bmpWidth; j++)
+                    {
+                        fwrite(&bmp->channels.b[i][j], sizeof(unsigned char), 1, arq);
+                        fwrite(&bmp->channels.g[i][j], sizeof(unsigned char), 1, arq);
+                        fwrite(&bmp->channels.r[i][j], sizeof(unsigned char), 1, arq);
+                    }
+                }
+            }
+            else 
+            {
+                printf("ERROR: Was not possible to create new bmp file!\n");
+                err = -3;
+            }
+            fclose(arq);
+        }
+        else 
+        {
+            printf("ERROR: You must write a valid bmp file!\n");
+            err = -1;
+        }
+    }
+    else 
+    {
+        printf("ERROR: Type a name to new file");
+        err = -2;
+    }
+    return err;
 }
 
 BMP_CHANNELS *bmp_get_channels()
