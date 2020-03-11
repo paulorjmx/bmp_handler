@@ -4,7 +4,7 @@
 
 #define BMP_SIG 0x4D42 // Bitmap file identification
 
-void bmp_free_channels(BMP_FILE **bmp); // Function to free memory used by channels
+void bmp_free_channels(BMP_FILE **); // Function to free memory used by channels
 
 typedef struct t_bmp_info_header
 {
