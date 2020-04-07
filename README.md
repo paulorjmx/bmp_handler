@@ -17,7 +17,7 @@ In order to compile in Windows, the example below suppose that you have added GC
     $ make
     ```
 
-    The command above, just compile the project e install it in the ```bin``` folder
+    The command above, just compile the project and install it in the ```bin``` folder
 
     To compile and run it, run the command:
 
