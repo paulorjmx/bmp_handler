@@ -10,8 +10,8 @@
 To execute the commands below, make sure you have the GNU Compiler Collection (GCC). In Linux, probaly you have it.
 In order to compile in Windows, the example below suppose that you have added GCC in the Path environment variable.
 
-+ Linux
-If you have a Linux distribution, do:
++ Linux  
+    If you have a Linux distribution, do:
 
     ```sh
     $ make
@@ -25,7 +25,7 @@ If you have a Linux distribution, do:
     $ make run
     ```
 
-+ Windows
++ Windows  
 In case if you have a Makefile installed on Windows, just follow the same steps in the Linux section.
 However, if don't you have a Makefile installed, run the ```cmd``` inside the folder of project, an type:
 
