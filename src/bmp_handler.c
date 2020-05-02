@@ -16,7 +16,7 @@ const double COS[8][8] = { { 1.000000,1.000000,1.000000,1.000000,1.000000,1.0000
                             { 0.195090,-0.555570,0.831470,-0.980785,0.980785,-0.831470,0.555570,-0.195090 } };
 
 void bmp_free_channels(BMP_FILE **); // Function to free memory used by channels
-void foward_dct(unsigned char **);
+void foward_dct(double **);
 
 typedef struct t_bmp_info_header
 {
@@ -45,7 +45,7 @@ typedef struct t_bmp_header
 
 struct t_bmp_channels
 {
-    unsigned char **r, **g, **b;
+    double **y, **cb, **cr;
 };
 
 struct t_bmp_file
@@ -56,6 +56,7 @@ struct t_bmp_file
 
 BMP_FILE *bmp_read_file(const char *file_name)
 {
+    unsigned char r = 0x00, g = 0x00, b = 0x00;
     BMP_FILE *bmp = NULL;
     if(file_name != NULL)
     {
@@ -85,14 +86,14 @@ BMP_FILE *bmp_read_file(const char *file_name)
                     fread(&bmp->header.info_header.bmpImportantColors, sizeof(unsigned int), 1, arq);
                                         
                     // Alloc pixels
-                    bmp->channels.r = (unsigned char **) malloc(sizeof(unsigned char *) * bmp->header.info_header.bmpHeight);
-                    bmp->channels.g = (unsigned char **) malloc(sizeof(unsigned char *) * bmp->header.info_header.bmpHeight);
-                    bmp->channels.b = (unsigned char **) malloc(sizeof(unsigned char *) * bmp->header.info_header.bmpHeight);
+                    bmp->channels.y = (double **) malloc(sizeof(double *) * bmp->header.info_header.bmpHeight);
+                    bmp->channels.cb = (double **) malloc(sizeof(double *) * bmp->header.info_header.bmpHeight);
+                    bmp->channels.cr = (double **) malloc(sizeof(double *) * bmp->header.info_header.bmpHeight);
                     for(int i = 0; i < bmp->header.info_header.bmpHeight; i++)
                     {
-                        bmp->channels.r[i] = (unsigned char *) malloc(sizeof(unsigned char) * bmp->header.info_header.bmpWidth);
-                        bmp->channels.g[i] = (unsigned char *) malloc(sizeof(unsigned char) * bmp->header.info_header.bmpWidth);
-                        bmp->channels.b[i] = (unsigned char *) malloc(sizeof(unsigned char) * bmp->header.info_header.bmpWidth);
+                        bmp->channels.y[i] = (double *) malloc(sizeof(double) * bmp->header.info_header.bmpWidth);
+                        bmp->channels.cb[i] = (double *) malloc(sizeof(double) * bmp->header.info_header.bmpWidth);
+                        bmp->channels.cr[i] = (double *) malloc(sizeof(double) * bmp->header.info_header.bmpWidth);
                     }
 
                     // Read pixels
@@ -101,9 +102,12 @@ BMP_FILE *bmp_read_file(const char *file_name)
                     {
                         for(int j = 0; j < bmp->header.info_header.bmpWidth; j++)
                         {
-                            fread(&bmp->channels.b[i][j], sizeof(unsigned char), 1, arq);
-                            fread(&bmp->channels.g[i][j], sizeof(unsigned char), 1, arq);
-                            fread(&bmp->channels.r[i][j], sizeof(unsigned char), 1, arq);
+                            fread(&b, sizeof(unsigned char), 1, arq);
+                            fread(&g, sizeof(unsigned char), 1, arq);
+                            fread(&r, sizeof(unsigned char), 1, arq);
+                            bmp->channels.y[i][j] = (0.299 * r) + (0.587 * g) + (0.114 * b);
+                            bmp->channels.cb[i][j] = 0.564 * (b - bmp->channels.y[i][j]);
+                            bmp->channels.cr[i][j] = 0.713 * (r - bmp->channels.y[i][j]);
                         }
                     }
                 }
@@ -132,6 +136,7 @@ BMP_FILE *bmp_read_file(const char *file_name)
 
 int bmp_write_file(const char *file_name, BMP_FILE *bmp)
 {
+    unsigned char r = 0x00, g = 0x00, b = 0x00;
     int err = 0;
     if(file_name != NULL)
     {
@@ -162,9 +167,12 @@ int bmp_write_file(const char *file_name, BMP_FILE *bmp)
                 {
                     for(int j = 0; j < bmp->header.info_header.bmpWidth; j++)
                     {
-                        fwrite(&bmp->channels.b[i][j], sizeof(unsigned char), 1, arq);
-                        fwrite(&bmp->channels.g[i][j], sizeof(unsigned char), 1, arq);
-                        fwrite(&bmp->channels.r[i][j], sizeof(unsigned char), 1, arq);
+                        r = (unsigned char) (bmp->channels.y[i][j] + (1.402 * bmp->channels.cr[i][j]));
+                        g = (unsigned char) (bmp->channels.y[i][j] - (0.344 * bmp->channels.cb[i][j]) - (0.714 * bmp->channels.cr[i][j]));
+                        b = (unsigned char) (bmp->channels.y[i][j] + (1.772 * bmp->channels.cb[i][j]));
+                        fwrite(&b, sizeof(unsigned char), 1, arq);
+                        fwrite(&g, sizeof(unsigned char), 1, arq);
+                        fwrite(&r, sizeof(unsigned char), 1, arq);
                     }
                 }
             }
@@ -193,15 +201,17 @@ void bmp_dct(BMP_FILE *bmp)
 {
     if(bmp != NULL)
     {
-        for(int i = 0; i < (bmp->header.info_header.bmpHeight / 8); i += 8)
-        {
-            for(int j = 0; j < (bmp->header.info_header.bmpWidth / 8); j += 8)
-            {
-                foward_dct((bmp->channels.r + i + j));
-                foward_dct((bmp->channels.g + i + j));
-                foward_dct((bmp->channels.b + i + j));
-            }
-        }
+        // for(int i = 0; i < (bmp->header.info_header.bmpHeight / 8); i += 8)
+        // {
+            // for(int j = 0; j < (bmp->header.info_header.bmpWidth / 8); j += 8)
+            // {
+                // foward_dct((bmp->channels.r + i + j));
+                foward_dct((bmp->channels.y));
+                // foward_dct((bmp->channels.g + i + j));
+                // foward_dct((bmp->channels.b + i + j));
+            // }
+        // }
+
     }
     else 
     {
@@ -209,7 +219,7 @@ void bmp_dct(BMP_FILE *bmp)
     }
 }
 
-void foward_dct(unsigned char **channel)
+void foward_dct(double **channel)
 {
     double sum = 0.0, ci = 0.0, cj = 0.0;
     for(int i = 0; i < 8; i++)
@@ -244,16 +254,16 @@ void bmp_free_channels(BMP_FILE **bmp)
     {
         for(int i = 0; i < (*bmp)->header.info_header.bmpHeight; i++)
         {
-            free((*bmp)->channels.r[i]);
-            free((*bmp)->channels.g[i]);
-            free((*bmp)->channels.b[i]);
+            free((*bmp)->channels.y[i]);
+            free((*bmp)->channels.cb[i]);
+            free((*bmp)->channels.cr[i]);
         }
-        free((*bmp)->channels.r);
-        free((*bmp)->channels.g);
-        free((*bmp)->channels.b);
-        (*bmp)->channels.r = NULL;
-        (*bmp)->channels.g = NULL;
-        (*bmp)->channels.b = NULL;
+        free((*bmp)->channels.y);
+        free((*bmp)->channels.cb);
+        free((*bmp)->channels.cr);
+        (*bmp)->channels.y = NULL;
+        (*bmp)->channels.cb = NULL;
+        (*bmp)->channels.cr = NULL;
     }
 }
 
