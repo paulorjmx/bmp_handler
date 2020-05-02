@@ -1,10 +1,22 @@
 #include <bmp_handler.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #define BMP_SIG 0x4D42 // Bitmap file identification
 
+// Cosine table for fast DCT calculation
+const double COS[8][8] = { { 1.000000,1.000000,1.000000,1.000000,1.000000,1.000000,1.000000,1.000000 },
+                            { 0.980785,0.831470,0.555570,0.195090,-0.195090,-0.555570,-0.831470,-0.980785 },
+                            { 0.923880,0.382683,-0.382683,-0.923880,-0.923880,-0.382683,0.382683,0.923880 },
+                            { 0.831470,-0.195090,-0.980785,-0.555570,0.555570,0.980785,0.195090,-0.831470 },
+                            { 0.707107,-0.707107,-0.707107,0.707107,0.707107,-0.707107,-0.707107,0.707107 },
+                            { 0.555570,-0.980785,0.195090,0.831470,-0.831470,-0.195090,0.980785,-0.555570 },
+                            { 0.382683,-0.923880,0.923880,-0.382683,-0.382683,0.923880,-0.923880,0.382683 },
+                            { 0.195090,-0.555570,0.831470,-0.980785,0.980785,-0.831470,0.555570,-0.195090 } };
+
 void bmp_free_channels(BMP_FILE **); // Function to free memory used by channels
+void foward_dct(unsigned char **);
 
 typedef struct t_bmp_info_header
 {
@@ -175,6 +187,50 @@ int bmp_write_file(const char *file_name, BMP_FILE *bmp)
         err = -2;
     }
     return err;
+}
+
+void bmp_dct(BMP_FILE *bmp)
+{
+    if(bmp != NULL)
+    {
+        for(int i = 0; i < (bmp->header.info_header.bmpHeight / 8); i += 8)
+        {
+            for(int j = 0; j < (bmp->header.info_header.bmpWidth / 8); j += 8)
+            {
+                foward_dct((bmp->channels.r + i + j));
+                foward_dct((bmp->channels.g + i + j));
+                foward_dct((bmp->channels.b + i + j));
+            }
+        }
+    }
+    else 
+    {
+        //Error bmp empty
+    }
+}
+
+void foward_dct(unsigned char **channel)
+{
+    double sum = 0.0, ci = 0.0, cj = 0.0;
+    for(int i = 0; i < 8; i++)
+    {
+        for(int j = 0; j < 8; j++)
+        {
+            sum = 0.0;
+            for(int x = 0; x < 8; x++)
+            {
+                for(int y = 0; y < 8; y++)
+                {
+                    sum += channel[x][y] * COS[i][x] * COS[j][y];
+                }
+            }
+            if(i == 0) ci = (1.0 / sqrt(2.0)); else ci = 1;
+            if(j == 0) cj = (1.0 / sqrt(2.0)); else cj = 1;
+            channel[i][j] = (1.0 / 4.0) * ci * cj * sum;
+            // printf("%8.2lf ", channel[i][j]);
+        }
+        // printf("\n");
+    }
 }
 
 BMP_CHANNELS *bmp_get_channels()
