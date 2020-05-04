@@ -5,7 +5,7 @@ DEST_DIR = ./bin
 BIN = main
 
 $(BIN): main.o bmp_handler.o
-	$(CC) $^ -o $(DEST_DIR)/$(BIN)
+	$(CC) $^ -lm -o $(DEST_DIR)/$(BIN)
 
 main.o: $(SRC_DIR)/main.c $(INC_DIR)/bmp_handler.h
 	$(CC) -I$(INC_DIR) -c $< -o main.o
