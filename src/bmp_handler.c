@@ -1,22 +1,47 @@
 #include <bmp_handler.h>
+#include <error_handler.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #define BMP_SIG 0x4D42 // Bitmap file identification
+#define SQRT_2 1.414214
+
+unsigned int ERROR = 0x00;
 
 // Cosine table for fast DCT calculation
-const double COS[8][8] = { { 1.000000,1.000000,1.000000,1.000000,1.000000,1.000000,1.000000,1.000000 },
-                            { 0.980785,0.831470,0.555570,0.195090,-0.195090,-0.555570,-0.831470,-0.980785 },
-                            { 0.923880,0.382683,-0.382683,-0.923880,-0.923880,-0.382683,0.382683,0.923880 },
-                            { 0.831470,-0.195090,-0.980785,-0.555570,0.555570,0.980785,0.195090,-0.831470 },
-                            { 0.707107,-0.707107,-0.707107,0.707107,0.707107,-0.707107,-0.707107,0.707107 },
-                            { 0.555570,-0.980785,0.195090,0.831470,-0.831470,-0.195090,0.980785,-0.555570 },
-                            { 0.382683,-0.923880,0.923880,-0.382683,-0.382683,0.923880,-0.923880,0.382683 },
-                            { 0.195090,-0.555570,0.831470,-0.980785,0.980785,-0.831470,0.555570,-0.195090 } };
+const double COS[8][8] = { { 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000 },
+                           { 0.980785, 0.831470, 0.555570, 0.195090, -0.195090, -0.555570, -0.831470, -0.980785 },
+                           { 0.923880, 0.382683, -0.382683, -0.923880, -0.923880, -0.382683, 0.382683, 0.923880 },
+                           { 0.831470, -0.195090, -0.980785, -0.555570, 0.555570, 0.980785, 0.195090, -0.831470 },
+                           { 0.707107, -0.707107, -0.707107, 0.707107, 0.707107, -0.707107, -0.707107, 0.707107 },
+                           { 0.555570, -0.980785, 0.195090, 0.831470, -0.831470, -0.195090, 0.980785, -0.555570 },
+                           { 0.382683, -0.923880, 0.923880, -0.382683, -0.382683, 0.923880, -0.923880, 0.382683 },
+                           { 0.195090, -0.555570, 0.831470, -0.980785, 0.980785, -0.831470, 0.555570, -0.195090 } };
+
+// Quantization table used in luminance channel (Y)
+const unsigned char QUANT_LUMINANCE[8][8] = { { 4, 3, 3, 4, 6, 7, 8, 10 },
+                                              { 3, 3, 3, 4, 5, 6, 8, 10 },
+                                              { 3, 3, 3, 4, 6, 9, 12, 12 },
+                                              { 4, 4, 4, 7, 9, 12, 12, 17 },
+                                              { 6, 5, 6, 9, 12, 13, 17, 20 },
+                                              { 7, 6, 9, 12, 13, 17, 20, 20 },
+                                              { 8, 8, 12, 12, 17, 20, 20, 20 },
+                                              { 10, 10, 12, 17, 20, 20, 20, 20 } };
+
+// Quantization table used in chrominance channel (Cb and Cr)
+const unsigned char QUANT_CHROMI[8][8] = { { 4, 5, 8, 15, 20, 20, 20, 20 },
+                                           { 5, 7, 10, 14, 20, 20, 20, 20 },
+                                           { 8, 10, 14, 20, 20, 20, 20, 20 },
+                                           { 15, 14, 20, 20, 20, 20, 20, 20 },
+                                           { 20, 20, 20, 20, 20, 20, 20, 20 },
+                                           { 20, 20, 20, 20, 20, 20, 20, 20 },
+                                           { 20, 20, 20, 20, 20, 20, 20, 20 },
+                                           { 20, 20, 20, 20, 20, 20, 20, 20 } };
 
 void bmp_free_channels(BMP_FILE **); // Function to free memory used by channels
-void foward_dct(double **);
+void foward_dct(double **); // Calculates the foward DCT-II in 8x8 blocks
+void inverse_dct(double **); // Calculates the inverse DCT-II in 8x8 blocks
 
 typedef struct t_bmp_info_header
 {
@@ -113,24 +138,25 @@ BMP_FILE *bmp_read_file(const char *file_name)
                 }
                 else 
                 {
-                    printf("ERROR: The file is not a bmp file!\n");
+                    ERROR = ERR_NOT_BITMAP;
                 }
             }
             else 
             {
-                printf("ERROR: Was not possible to allocate memory\n");
+                ERROR = ERR_ALLOCATE_MEMORY;
             }
         }
         else 
         {
-            printf("ERROR: Some error ocurred on open the file!\n");
+            ERROR = ERR_COULD_NOT_OPEN_FILE;
         }
         fclose(arq);
     }
     else 
     {
-        printf("ERROR: Type a file name!\n");
+        ERROR = ERR_EMPTY_FILE_NAME;
     }
+    error_catch(ERROR);
     return bmp;
 }
 
@@ -178,39 +204,54 @@ int bmp_write_file(const char *file_name, BMP_FILE *bmp)
             }
             else 
             {
-                printf("ERROR: Was not possible to create new bmp file!\n");
-                err = -3;
+                ERROR = ERR_CREATE_BITMAP;
+                err = -1;
             }
             fclose(arq);
         }
         else 
         {
-            printf("ERROR: You must write a valid bmp file!\n");
+            ERROR = ERR_BMP_NOT_EXIST;
             err = -1;
         }
     }
     else 
     {
-        printf("ERROR: Type a name to new file");
-        err = -2;
+        ERROR = ERR_EMPTY_FILE_NAME;
+        err = -1;
     }
+    error_catch(ERROR);
     return err;
 }
 
-void bmp_dct(BMP_FILE *bmp)
+void bmp_dct(BMP_FILE *bmp, char type)
 {
     if(bmp != NULL)
     {
-        // for(int i = 0; i < (bmp->header.info_header.bmpHeight / 8); i += 8)
-        // {
-            // for(int j = 0; j < (bmp->header.info_header.bmpWidth / 8); j += 8)
-            // {
-                // foward_dct((bmp->channels.r + i + j));
-                foward_dct((bmp->channels.y));
-                // foward_dct((bmp->channels.g + i + j));
-                // foward_dct((bmp->channels.b + i + j));
-            // }
-        // }
+        if(type == 0) // If it is the foward DCT-II
+        {
+            for(int i = 0; i < (bmp->header.info_header.bmpHeight / 8); i += 8)
+            {
+                for(int j = 0; j < (bmp->header.info_header.bmpWidth / 8); j += 8)
+                {
+                    foward_dct((bmp->channels.y + i + j));
+                    foward_dct((bmp->channels.cb + i + j));
+                    foward_dct((bmp->channels.cr + i + j));
+                }
+            }
+        }
+        else if(type == -1) // If it is the inversed DCT-II
+        {
+            for(int i = 0; i < (bmp->header.info_header.bmpHeight / 8); i += 8)
+            {
+                for(int j = 0; j < (bmp->header.info_header.bmpWidth / 8); j += 8)
+                {
+                    inverse_dct((bmp->channels.y + i + j));
+                    inverse_dct((bmp->channels.cb + i + j));
+                    inverse_dct((bmp->channels.cr + i + j));
+                }
+            }
+        }
 
     }
     else 
@@ -222,6 +263,7 @@ void bmp_dct(BMP_FILE *bmp)
 void foward_dct(double **channel)
 {
     double sum = 0.0, ci = 0.0, cj = 0.0;
+    double out[8][8];
     for(int i = 0; i < 8; i++)
     {
         for(int j = 0; j < 8; j++)
@@ -234,12 +276,49 @@ void foward_dct(double **channel)
                     sum += channel[x][y] * COS[i][x] * COS[j][y];
                 }
             }
-            if(i == 0) ci = (1.0 / sqrt(2.0)); else ci = 1;
-            if(j == 0) cj = (1.0 / sqrt(2.0)); else cj = 1;
-            channel[i][j] = (1.0 / 4.0) * ci * cj * sum;
-            // printf("%8.2lf ", channel[i][j]);
+            if(i == 0) ci = (1.0 / SQRT_2); else ci = 1;
+            if(j == 0) cj = (1.0 / SQRT_2); else cj = 1;
+            out[i][j] = (1.0 / 4.0) * ci * cj * sum;
         }
-        // printf("\n");
+    }
+
+    for(int i = 0; i < 8; i++)
+    {
+        for(int j = 0; j < 8; j++)
+        {
+            channel[i][j] = out[i][j];
+        }
+    }
+}
+
+void inverse_dct(double **channel)
+{
+    double out[8][8];
+    double sum = 0.0, ci = 0.0, cj = 0.0;
+    for(int x = 0; x < 8; x++)
+    {
+        for(int y = 0; y < 8; y++)
+        {
+            sum = 0.0;
+            for(int i = 0; i < 8; i++)
+            {
+                if(i == 0) ci = (1.0 / SQRT_2); else ci = 1;
+                for(int j = 0; j < 8; j++)
+                {
+                    if(j == 0) cj = (1.0 / SQRT_2); else cj = 1;
+                    sum += ci * cj * channel[i][j] * COS[i][x] * COS[j][y];
+                }
+            }
+            out[x][y] = (1.0 / 4.0) * sum;
+        }
+    }
+
+    for(int i = 0; i < 8; i++)
+    {
+        for(int j = 0; j < 8; j++)
+        {
+            channel[i][j] = out[i][j];
+        }
     }
 }
 
