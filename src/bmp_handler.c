@@ -42,6 +42,10 @@ const unsigned char QUANT_CHROMI[8][8] = { { 4, 5, 8, 15, 20, 20, 20, 20 },
 void bmp_free_channels(BMP_FILE **); // Function to free memory used by channels
 void foward_dct(double **); // Calculates the foward DCT-II in 8x8 blocks
 void inverse_dct(double **); // Calculates the inverse DCT-II in 8x8 blocks
+void quantization_luminance(double **); // Apply the quantization in luminance channel
+void inverse_quantization_luminance(double **); // Apply the inverse quantization in luminance channel
+void quantization_chrominance(double **); // Apply the quantization in chrominance channel
+void inverse_quantization_chrominance(double **); // Apply the inverse quantization in chrominance channel
 
 typedef struct t_bmp_info_header
 {
@@ -252,12 +256,12 @@ void bmp_dct(BMP_FILE *bmp, char type)
                 }
             }
         }
-
     }
     else 
     {
-        //Error bmp empty
+        ERROR = ERR_BMP_NOT_EXIST;
     }
+    error_catch(ERROR);
 }
 
 void foward_dct(double **channel)
@@ -320,6 +324,92 @@ void inverse_dct(double **channel)
             channel[i][j] = out[i][j];
         }
     }
+}
+
+void bmp_quantization(BMP_FILE *bmp)
+{
+    if(bmp != NULL)
+    {
+        for(int i = 0; i < (bmp->header.info_header.bmpHeight / 8); i += 8)
+        {
+            for(int j = 0; j < (bmp->header.info_header.bmpWidth / 8); j += 8)
+            {
+                quantization_luminance((bmp->channels.y + i + j));
+                quantization_chrominance((bmp->channels.cb + i + j));
+                quantization_chrominance((bmp->channels.cr + i + j));
+            }
+        }
+    }
+    else 
+    {
+        ERROR = ERR_BMP_NOT_EXIST;
+    }
+    error_catch(ERROR);
+}
+
+void quantization_luminance(double **channel)
+{
+    for(int i = 0; i < 8; i++)
+    {
+        for(int j = 0; j < 8; j++)
+        {
+            channel[i][j] /= QUANT_LUMINANCE[i][j];
+        }
+    }
+}
+
+void quantization_chrominance(double **channel)
+{
+    for(int i = 0; i < 8; i++)
+    {
+        for(int j = 0; j < 8; j++)
+        {
+            channel[i][j] /= QUANT_CHROMI[i][j];
+        }
+    }
+}
+
+void inverse_quantization_luminance(double **channel)
+{
+    for(int i = 0; i < 8; i++)
+    {
+        for(int j = 0; j < 8; j++)
+        {
+            channel[i][j] *= QUANT_LUMINANCE[i][j];
+        }
+    }
+}
+
+void inverse_quantization_chrominance(double **channel)
+{
+    for(int i = 0; i < 8; i++)
+    {
+        for(int j = 0; j < 8; j++)
+        {
+            channel[i][j] *= QUANT_CHROMI[i][j];
+        }
+    }
+}
+
+void bmp_inverse_quantization(BMP_FILE *bmp)
+{
+    if(bmp != NULL)
+    {
+        for(int i = 0; i < (bmp->header.info_header.bmpHeight / 8); i += 8)
+        {
+            for(int j = 0; j < (bmp->header.info_header.bmpWidth / 8); j += 8)
+            {
+                inverse_quantization_luminance((bmp->channels.y + i + j));
+                inverse_quantization_chrominance((bmp->channels.cb + i + j));
+                inverse_quantization_chrominance((bmp->channels.cr + i + j));
+            }
+        }
+    }
+    else 
+    {
+        ERROR = ERR_BMP_NOT_EXIST;
+    }
+    error_catch(ERROR);
 }
 
 BMP_CHANNELS *bmp_get_channels()
