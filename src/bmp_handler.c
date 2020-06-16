@@ -46,6 +46,7 @@ void quantization_luminance(double **); // Apply the quantization in luminance c
 void inverse_quantization_luminance(double **); // Apply the inverse quantization in luminance channel
 void quantization_chrominance(double **); // Apply the quantization in chrominance channel
 void inverse_quantization_chrominance(double **); // Apply the inverse quantization in chrominance channel
+void calculate_difference(double **);
 
 typedef struct t_bmp_info_header
 {
@@ -232,6 +233,16 @@ void bmp_dct(BMP_FILE *bmp, char type)
 {
     if(bmp != NULL)
     {
+        // for(int i = 0; i < 8; i++)
+        // {
+        //     for(int j = 0; j < 8; j++)
+        //     {
+        //         printf("%8.1lf ", bmp->channels.y[i][j]);
+        //     }
+        //     printf("\n");
+        // }
+
+        // printf("\n");
         if(type == 0) // If it is the foward DCT-II
         {
             for(int i = 0; i < (bmp->header.info_header.bmpHeight / 8); i += 8)
@@ -243,6 +254,7 @@ void bmp_dct(BMP_FILE *bmp, char type)
                     foward_dct((bmp->channels.cr + i + j));
                 }
             }
+            // foward_dct(bmp->channels.y);
         }
         else if(type == -1) // If it is the inversed DCT-II
         {
@@ -255,7 +267,17 @@ void bmp_dct(BMP_FILE *bmp, char type)
                     inverse_dct((bmp->channels.cr + i + j));
                 }
             }
+            // inverse_dct(bmp->channels.y);
         }
+        // for(int i = 0; i < 8; i++)
+        // {
+        //     for(int j = 0; j < 8; j++)
+        //     {
+        //         printf("%8.1lf ", bmp->channels.y[i][j]);
+        //     }
+        //     printf("\n");
+        // }
+        // printf("\n");
     }
     else 
     {
@@ -339,6 +361,16 @@ void bmp_quantization(BMP_FILE *bmp)
                 quantization_chrominance((bmp->channels.cr + i + j));
             }
         }
+        // quantization_luminance(bmp->channels.y);
+        // for(int i = 0; i < 8; i++)
+        // {
+        //     for(int j = 0; j < 8; j++)
+        //     {
+        //         printf("%8.1lf ", bmp->channels.y[i][j]);
+        //     }
+        //     printf("\n");
+        // }
+        // printf("\n");
     }
     else 
     {
@@ -353,7 +385,7 @@ void quantization_luminance(double **channel)
     {
         for(int j = 0; j < 8; j++)
         {
-            channel[i][j] /= QUANT_LUMINANCE[i][j];
+            channel[i][j] = round(channel[i][j] / QUANT_LUMINANCE[i][j]);
         }
     }
 }
@@ -364,7 +396,7 @@ void quantization_chrominance(double **channel)
     {
         for(int j = 0; j < 8; j++)
         {
-            channel[i][j] /= QUANT_CHROMI[i][j];
+            channel[i][j] = round(channel[i][j] / QUANT_CHROMI[i][j]);
         }
     }
 }
@@ -404,12 +436,43 @@ void bmp_inverse_quantization(BMP_FILE *bmp)
                 inverse_quantization_chrominance((bmp->channels.cr + i + j));
             }
         }
+
+        // inverse_quantization_luminance(bmp->channels.y);
+        // for(int i = 0; i < 8; i++)
+        // {
+        //     for(int j = 0; j < 8; j++)
+        //     {
+        //         printf("%8.1lf ", bmp->channels.y[i][j]);
+        //     }
+        //     printf("\n");
+        // }
+        // printf("\n");
     }
     else 
     {
         ERROR = ERR_BMP_NOT_EXIST;
     }
     error_catch(ERROR);
+}
+
+void bmp_diff_encode(BMP_FILE *bmp)
+{
+    if(bmp != NULL)
+    {
+
+    }
+    else
+    {
+        ERROR = ERR_BMP_NOT_EXIST;
+    }
+    error_catch(ERROR);
+    
+}
+
+void calculate_difference(double **channel)
+{
+    int i = 0, j = 1;
+    double current = channel[0][0];
 }
 
 BMP_CHANNELS *bmp_get_channels()
