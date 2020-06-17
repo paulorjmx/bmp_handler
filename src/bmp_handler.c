@@ -477,7 +477,7 @@ void bmp_diff_encode(BMP_FILE *bmp)
             }
             printf("\n");
         }
-        printf("\n");
+        // printf("\n");
         // for(int i = 0; i < (bmp->header.info_header.bmpHeight / 8); i += 8)
         // {
         //     for(int j = 0; j < (bmp->header.info_header.bmpWidth / 8); j += 8)
@@ -493,7 +493,6 @@ void bmp_diff_encode(BMP_FILE *bmp)
         ERROR = ERR_BMP_NOT_EXIST;
     }
     error_catch(ERROR);
-    
 }
 
 void calculate_difference(double **channel)
@@ -503,6 +502,43 @@ void calculate_difference(double **channel)
 
     // First half
     for(int i = 1; i < 8; i++, max++)
+    {
+        for(int j = 1; j < max; j++)
+        {
+            current = channel[x][y];
+            channel[x][y] = current - last;
+            last = current;
+            if((i % 2) == 0)
+            {
+                x--;
+                y++;
+            }
+            else 
+            {
+                x++;
+                y--;
+            }
+
+        }
+        current = channel[x][y];
+        channel[x][y] = current - last;
+        last = current;
+        if((i % 2) == 0)
+        {
+            y++;
+        }
+        else 
+        {
+            x++;
+        }
+    }
+
+    printf("MAX: %d\n", max);
+    // Second half
+    max = 6;
+    x = 7;
+    y = 1;
+    for(int i = 1; i < 6; i++, max--)
     {
         for(int j = 0; j < max; j++)
         {
@@ -516,11 +552,15 @@ void calculate_difference(double **channel)
             }
             else 
             {
-                x++;
-                y--;
+                x--;
+                y++;
             }
 
         }
+
+        current = channel[x][y];
+        channel[x][y] = current - last;
+        last = current;
         if((i % 2) == 0)
         {
             y++;
@@ -530,40 +570,6 @@ void calculate_difference(double **channel)
             x++;
         }
     }
-
-    printf("MAX: %d\n", max);
-    // Second half
-    // max--;
-    // x = 1;
-    // y = 1;
-    // for(int i = 2; i < 8; i++, max--)
-    // {
-    //     for(int j = 1; j < max; j++)
-    //     {
-    //         current = channel[x][y];
-    //         channel[x][y] = current - last;
-    //         last = current;
-    //         if((i % 2) == 0)
-    //         {
-    //             x--;
-    //             y++;
-    //         }
-    //         else 
-    //         {
-    //             x++;
-    //             y--;
-    //         }
-
-    //     }
-    //     if((i % 2) == 0)
-    //     {
-    //         x++;
-    //     }
-    //     else 
-    //     {
-    //         y++;
-    //     }
-    // }
 }
 
 BMP_CHANNELS *bmp_get_channels()
