@@ -9,6 +9,8 @@
 		void bmp_dct(BMP_FILE *, char); // Calculates the DCT-II 
 		void bmp_quantization(BMP_FILE *); // Apply the quantization in all channels
 		void bmp_inverse_quantization(BMP_FILE *); // Apply the inverse quantization in all channels
+		void bmp_diff_encode(BMP_FILE *);
+		void bmp_diff_decode(BMP_FILE *);
 		BMP_CHANNELS *bmp_get_channels();
 		void bmp_destroy(BMP_FILE **); // Free the memory used by BMP file 
 #endif
