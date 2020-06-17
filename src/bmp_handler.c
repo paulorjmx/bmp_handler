@@ -47,6 +47,7 @@ void inverse_quantization_luminance(double **); // Apply the inverse quantizatio
 void quantization_chrominance(double **); // Apply the quantization in chrominance channel
 void inverse_quantization_chrominance(double **); // Apply the inverse quantization in chrominance channel
 void calculate_difference(double **);
+void calculate_inv_difference(double **);
 
 typedef struct t_bmp_info_header
 {
@@ -520,6 +521,7 @@ void calculate_difference(double **channel)
             }
 
         }
+        
         current = channel[x][y];
         channel[x][y] = current - last;
         last = current;
@@ -532,13 +534,11 @@ void calculate_difference(double **channel)
             x++;
         }
     }
-
-    printf("MAX: %d\n", max);
     // Second half
     max = 6;
     x = 7;
     y = 1;
-    for(int i = 1; i < 6; i++, max--)
+    for(int i = 1; i < 7; i++, max--)
     {
         for(int j = 0; j < max; j++)
         {
@@ -555,9 +555,7 @@ void calculate_difference(double **channel)
                 x--;
                 y++;
             }
-
         }
-
         current = channel[x][y];
         channel[x][y] = current - last;
         last = current;
@@ -570,6 +568,86 @@ void calculate_difference(double **channel)
             x++;
         }
     }
+    current = channel[x][y];
+    channel[x][y] = current - last;
+    last = current;
+}
+
+void calculate_inv_difference(double **channel)
+{
+    int x = 0, y = 1, max = 2;
+    double current = 0.0, last = channel[0][0];
+
+    // First half
+    for(int i = 1; i < 8; i++, max++)
+    {
+        for(int j = 1; j < max; j++)
+        {
+            current = channel[x][y];
+            channel[x][y] = current + last;
+            last = channel[x][y];
+            if((i % 2) == 0)
+            {
+                x--;
+                y++;
+            }
+            else 
+            {
+                x++;
+                y--;
+            }
+
+        }
+        
+        current = channel[x][y];
+        channel[x][y] = current + last;
+        last = channel[x][y];
+        if((i % 2) == 0)
+        {
+            y++;
+        }
+        else 
+        {
+            x++;
+        }
+    }
+    // Second half
+    max = 6;
+    x = 7;
+    y = 1;
+    for(int i = 1; i < 7; i++, max--)
+    {
+        for(int j = 0; j < max; j++)
+        {
+            current = channel[x][y];
+            channel[x][y] = current + last;
+            last = channel[x][y];
+            if((i % 2) == 0)
+            {
+                x++;
+                y--;
+            }
+            else 
+            {
+                x--;
+                y++;
+            }
+        }
+        current = channel[x][y];
+        channel[x][y] = current + last;
+        last = channel[x][y];
+        if((i % 2) == 0)
+        {
+            y++;
+        }
+        else 
+        {
+            x++;
+        }
+    }
+    current = channel[x][y];
+    channel[x][y] = current + last;
+    last = channel[x][y];
 }
 
 BMP_CHANNELS *bmp_get_channels()
