@@ -5,7 +5,7 @@
 #include <stdlib.h>
 
 #define BMP_SIG 0x4D42 // Bitmap file identification
-#define SQRT_2 1.414214
+#define SQRT_2 1.414214 // Calculated square root of 2
 
 unsigned int ERROR = 0x00;
 
@@ -48,6 +48,7 @@ void quantization_chrominance(double **); // Apply the quantization in chrominan
 void inverse_quantization_chrominance(double **); // Apply the inverse quantization in chrominance channel
 void calculate_difference(double **); // Auxiliary function to delta encoding
 void calculate_inv_difference(double **); // Auxiliary function do delta decoding
+void print8x8block(double **); // Print the content of an 8x8 block
 
 typedef struct t_bmp_info_header
 {
@@ -416,11 +417,11 @@ void bmp_inverse_quantization(BMP_FILE *bmp)
     error_catch(ERROR);
 }
 
-void print_8x8(double *channel[8])
+void print8x8block(double **channel)
 {
     for(int x = 0; x < 8; x++)
     {
-        for(int y = 0; y < 16; y++)
+        for(int y = 0; y < 8; y++)
         {
             printf("%8.1lf", channel[x][y]);
         }
