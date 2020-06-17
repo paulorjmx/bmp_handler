@@ -46,8 +46,8 @@ void quantization_luminance(double **); // Apply the quantization in luminance c
 void inverse_quantization_luminance(double **); // Apply the inverse quantization in luminance channel
 void quantization_chrominance(double **); // Apply the quantization in chrominance channel
 void inverse_quantization_chrominance(double **); // Apply the inverse quantization in chrominance channel
-void calculate_difference(double **);
-void calculate_inv_difference(double **);
+void calculate_difference(double **); // Auxiliary function to delta encoding
+void calculate_inv_difference(double **); // Auxiliary function do delta decoding
 
 typedef struct t_bmp_info_header
 {
@@ -76,7 +76,8 @@ typedef struct t_bmp_header
 
 struct t_bmp_channels
 {
-    double **y, **cb, **cr;
+    unsigned int qt_blocks;
+    double ***y, ***cb, ***cr;
 };
 
 struct t_bmp_file
@@ -115,30 +116,40 @@ BMP_FILE *bmp_read_file(const char *file_name)
                     fread(&bmp->header.info_header.bmpYPixelsPerMeter, sizeof(unsigned int), 1, arq);
                     fread(&bmp->header.info_header.bmpTotalColors, sizeof(unsigned int), 1, arq);
                     fread(&bmp->header.info_header.bmpImportantColors, sizeof(unsigned int), 1, arq);
-                                        
+                    
+                    bmp->channels.qt_blocks = (bmp->header.info_header.bmpHeight * bmp->header.info_header.bmpWidth) / 64;
                     // Alloc pixels
-                    bmp->channels.y = (double **) malloc(sizeof(double *) * bmp->header.info_header.bmpHeight);
-                    bmp->channels.cb = (double **) malloc(sizeof(double *) * bmp->header.info_header.bmpHeight);
-                    bmp->channels.cr = (double **) malloc(sizeof(double *) * bmp->header.info_header.bmpHeight);
-                    for(int i = 0; i < bmp->header.info_header.bmpHeight; i++)
+                    bmp->channels.y = (double ***) malloc(sizeof(double **) * bmp->channels.qt_blocks);
+                    bmp->channels.cb = (double ***) malloc(sizeof(double **) * bmp->channels.qt_blocks);
+                    bmp->channels.cr = (double ***) malloc(sizeof(double **) * bmp->channels.qt_blocks);
+                    for(int i = 0; i < bmp->channels.qt_blocks; i++)
                     {
-                        bmp->channels.y[i] = (double *) malloc(sizeof(double) * bmp->header.info_header.bmpWidth);
-                        bmp->channels.cb[i] = (double *) malloc(sizeof(double) * bmp->header.info_header.bmpWidth);
-                        bmp->channels.cr[i] = (double *) malloc(sizeof(double) * bmp->header.info_header.bmpWidth);
+                        bmp->channels.y[i] = (double **) malloc(sizeof(double *) * 8);
+                        bmp->channels.cb[i] = (double **) malloc(sizeof(double *) * 8);
+                        bmp->channels.cr[i] = (double **) malloc(sizeof(double *) * 8);
+                        for(int j = 0; j < 8; j++)
+                        {
+                            bmp->channels.y[i][j] = (double *) malloc(sizeof(double) * 8);
+                            bmp->channels.cb[i][j] = (double *) malloc(sizeof(double) * 8);
+                            bmp->channels.cr[i][j] = (double *) malloc(sizeof(double) * 8);
+                        }
                     }
 
                     // Read pixels
                     fseek(arq, bmp->header.bmpPixelDataOffset, SEEK_SET);
-                    for(int i = 0; i < bmp->header.info_header.bmpHeight; i++)
+                    for(int k = 0; k < bmp->channels.qt_blocks; k++)
                     {
-                        for(int j = 0; j < bmp->header.info_header.bmpWidth; j++)
+                        for(int i = 0; i < 8; i++)
                         {
-                            fread(&b, sizeof(unsigned char), 1, arq);
-                            fread(&g, sizeof(unsigned char), 1, arq);
-                            fread(&r, sizeof(unsigned char), 1, arq);
-                            bmp->channels.y[i][j] = (0.299 * r) + (0.587 * g) + (0.114 * b);
-                            bmp->channels.cb[i][j] = 0.564 * (b - bmp->channels.y[i][j]);
-                            bmp->channels.cr[i][j] = 0.713 * (r - bmp->channels.y[i][j]);
+                            for(int j = 0; j < 8; j++)
+                            {
+                                fread(&b, sizeof(unsigned char), 1, arq);
+                                fread(&g, sizeof(unsigned char), 1, arq);
+                                fread(&r, sizeof(unsigned char), 1, arq);
+                                bmp->channels.y[k][i][j] = (0.299 * r) + (0.587 * g) + (0.114 * b);
+                                bmp->channels.cb[k][i][j] = 0.564 * (b - bmp->channels.y[k][i][j]);
+                                bmp->channels.cr[k][i][j] = 0.713 * (r - bmp->channels.y[k][i][j]);
+                            }
                         }
                     }
                 }
@@ -195,16 +206,19 @@ int bmp_write_file(const char *file_name, BMP_FILE *bmp)
                 fwrite(&bmp->header.info_header.bmpImportantColors, sizeof(unsigned int), 1, arq);
                 
                 fseek(arq, bmp->header.bmpPixelDataOffset, SEEK_SET);
-                for(int i = 0; i < bmp->header.info_header.bmpHeight; i++)
+                for(int k = 0; k < bmp->channels.qt_blocks; k++)
                 {
-                    for(int j = 0; j < bmp->header.info_header.bmpWidth; j++)
+                    for(int i = 0; i < 8; i++)
                     {
-                        r = (unsigned char) (bmp->channels.y[i][j] + (1.402 * bmp->channels.cr[i][j]));
-                        g = (unsigned char) (bmp->channels.y[i][j] - (0.344 * bmp->channels.cb[i][j]) - (0.714 * bmp->channels.cr[i][j]));
-                        b = (unsigned char) (bmp->channels.y[i][j] + (1.772 * bmp->channels.cb[i][j]));
-                        fwrite(&b, sizeof(unsigned char), 1, arq);
-                        fwrite(&g, sizeof(unsigned char), 1, arq);
-                        fwrite(&r, sizeof(unsigned char), 1, arq);
+                        for(int j = 0; j < 8; j++)
+                        {
+                            r = (unsigned char) (bmp->channels.y[k][i][j] + (1.402 * bmp->channels.cr[k][i][j]));
+                            g = (unsigned char) (bmp->channels.y[k][i][j] - (0.344 * bmp->channels.cb[k][i][j]) - (0.714 * bmp->channels.cr[k][i][j]));
+                            b = (unsigned char) (bmp->channels.y[k][i][j] + (1.772 * bmp->channels.cb[k][i][j]));
+                            fwrite(&b, sizeof(unsigned char), 1, arq);
+                            fwrite(&g, sizeof(unsigned char), 1, arq);
+                            fwrite(&r, sizeof(unsigned char), 1, arq);
+                        }
                     }
                 }
             }
@@ -246,27 +260,21 @@ void bmp_dct(BMP_FILE *bmp, char type)
         // printf("\n");
         if(type == 0) // If it is the foward DCT-II
         {
-            for(int i = 0; i < (bmp->header.info_header.bmpHeight / 8); i += 8)
+            for(int i = 0; i < bmp->channels.qt_blocks; i++)
             {
-                for(int j = 0; j < (bmp->header.info_header.bmpWidth / 8); j += 8)
-                {
-                    foward_dct((bmp->channels.y + i + j));
-                    foward_dct((bmp->channels.cb + i + j));
-                    foward_dct((bmp->channels.cr + i + j));
-                }
+                foward_dct(bmp->channels.y[i]);
+                foward_dct(bmp->channels.cb[i]);
+                foward_dct(bmp->channels.cr[i]);
             }
             // foward_dct(bmp->channels.y);
         }
         else if(type == -1) // If it is the inversed DCT-II
         {
-            for(int i = 0; i < (bmp->header.info_header.bmpHeight / 8); i += 8)
+            for(int i = 0; i < bmp->channels.qt_blocks; i++)
             {
-                for(int j = 0; j < (bmp->header.info_header.bmpWidth / 8); j += 8)
-                {
-                    inverse_dct((bmp->channels.y + i + j));
-                    inverse_dct((bmp->channels.cb + i + j));
-                    inverse_dct((bmp->channels.cr + i + j));
-                }
+                inverse_dct(bmp->channels.y[i]);
+                inverse_dct(bmp->channels.cb[i]);
+                inverse_dct(bmp->channels.cr[i]);
             }
             // inverse_dct(bmp->channels.y);
         }
@@ -353,14 +361,11 @@ void bmp_quantization(BMP_FILE *bmp)
 {
     if(bmp != NULL)
     {
-        for(int i = 0; i < (bmp->header.info_header.bmpHeight / 8); i += 8)
+        for(int i = 0; i < bmp->channels.qt_blocks; i++)
         {
-            for(int j = 0; j < (bmp->header.info_header.bmpWidth / 8); j += 8)
-            {
-                quantization_luminance((bmp->channels.y + i + j));
-                quantization_chrominance((bmp->channels.cb + i + j));
-                quantization_chrominance((bmp->channels.cr + i + j));
-            }
+            quantization_luminance(bmp->channels.y[i]);
+            quantization_chrominance(bmp->channels.cb[i]);
+            quantization_chrominance(bmp->channels.cr[i]);
         }
         // quantization_luminance(bmp->channels.y);
         // for(int i = 0; i < 8; i++)
@@ -386,7 +391,8 @@ void quantization_luminance(double **channel)
     {
         for(int j = 0; j < 8; j++)
         {
-            channel[i][j] = round(channel[i][j] / QUANT_LUMINANCE[i][j]);
+            // channel[i][j] = round(channel[i][j] / QUANT_LUMINANCE[i][j]);
+            channel[i][j] /= QUANT_LUMINANCE[i][j];
         }
     }
 }
@@ -397,7 +403,8 @@ void quantization_chrominance(double **channel)
     {
         for(int j = 0; j < 8; j++)
         {
-            channel[i][j] = round(channel[i][j] / QUANT_CHROMI[i][j]);
+            // channel[i][j] = round(channel[i][j] / QUANT_CHROMI[i][j]);
+            channel[i][j] /= QUANT_CHROMI[i][j];
         }
     }
 }
@@ -428,14 +435,11 @@ void bmp_inverse_quantization(BMP_FILE *bmp)
 {
     if(bmp != NULL)
     {
-        for(int i = 0; i < (bmp->header.info_header.bmpHeight / 8); i += 8)
+        for(int i = 0; i < bmp->channels.qt_blocks; i++)
         {
-            for(int j = 0; j < (bmp->header.info_header.bmpWidth / 8); j += 8)
-            {
-                inverse_quantization_luminance((bmp->channels.y + i + j));
-                inverse_quantization_chrominance((bmp->channels.cb + i + j));
-                inverse_quantization_chrominance((bmp->channels.cr + i + j));
-            }
+            inverse_quantization_luminance(bmp->channels.y[i]);
+            inverse_quantization_chrominance(bmp->channels.cb[i]);
+            inverse_quantization_chrominance(bmp->channels.cr[i]);
         }
 
         // inverse_quantization_luminance(bmp->channels.y);
@@ -456,38 +460,47 @@ void bmp_inverse_quantization(BMP_FILE *bmp)
     error_catch(ERROR);
 }
 
+void print_8x8(double *channel[8])
+{
+    for(int x = 0; x < 8; x++)
+    {
+        for(int y = 0; y < 16; y++)
+        {
+            printf("%8.1lf", channel[x][y]);
+        }
+        printf("\n");
+    }
+}
+
 void bmp_diff_encode(BMP_FILE *bmp)
 {
     if(bmp != NULL)
     {
-        for(int i = 0; i < 8; i++)
+        for(int i = 0; i < bmp->channels.qt_blocks; i++)
         {
-            for(int j = 0; j < 8; j++)
-            {
-                printf("%8.1lf ", bmp->channels.y[i][j]);
-            }
-            printf("\n");
+            calculate_difference(bmp->channels.y[i]);
+            calculate_difference(bmp->channels.cb[i]);
+            calculate_difference(bmp->channels.cr[i]);
         }
-        printf("\n");
-        calculate_difference((bmp->channels.y));
-        for(int i = 0; i < 8; i++)
+    }
+    else
+    {
+        ERROR = ERR_BMP_NOT_EXIST;
+    }
+    error_catch(ERROR);
+}
+
+void bmp_diff_decode(BMP_FILE *bmp)
+{
+    int i = 0, j = 0, x = 0, y = 0;
+    if(bmp != NULL)
+    {
+        for(int i = 0; i < bmp->channels.qt_blocks; i++)
         {
-            for(int j = 0; j < 8; j++)
-            {
-                printf("%8.1lf ", bmp->channels.y[i][j]);
-            }
-            printf("\n");
+            calculate_inv_difference(bmp->channels.y[i]);
+            calculate_inv_difference(bmp->channels.cb[i]);
+            calculate_inv_difference(bmp->channels.cr[i]);
         }
-        // printf("\n");
-        // for(int i = 0; i < (bmp->header.info_header.bmpHeight / 8); i += 8)
-        // {
-        //     for(int j = 0; j < (bmp->header.info_header.bmpWidth / 8); j += 8)
-        //     {
-        //         calculate_difference((bmp->channels.y) + i + j);
-        //         calculate_difference((bmp->channels.cb) + i + j);
-        //         calculate_difference((bmp->channels.cr) + i + j);
-        //     }
-        // }
     }
     else
     {
@@ -659,18 +672,24 @@ void bmp_free_channels(BMP_FILE **bmp)
 {
     if((*bmp) != NULL)
     {
-        for(int i = 0; i < (*bmp)->header.info_header.bmpHeight; i++)
+        for(int i = 0; i < (*bmp)->channels.qt_blocks; i++)
         {
+            for(int j = 0; j < 8; j++)
+            {
+                free((*bmp)->channels.y[i][j]);
+                free((*bmp)->channels.cb[i][j]);
+                free((*bmp)->channels.cr[i][j]);
+            }
             free((*bmp)->channels.y[i]);
             free((*bmp)->channels.cb[i]);
             free((*bmp)->channels.cr[i]);
+            (*bmp)->channels.y[i] = NULL;
+            (*bmp)->channels.cb[i] = NULL;
+            (*bmp)->channels.cr[i] = NULL;
         }
         free((*bmp)->channels.y);
         free((*bmp)->channels.cb);
         free((*bmp)->channels.cr);
-        (*bmp)->channels.y = NULL;
-        (*bmp)->channels.cb = NULL;
-        (*bmp)->channels.cr = NULL;
     }
 }
 
