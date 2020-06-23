@@ -1,4 +1,4 @@
-# Image decompression/compression project
+# Image compression/decompression project (utilizing JPEG approach)
 
 ### Contributors
 
