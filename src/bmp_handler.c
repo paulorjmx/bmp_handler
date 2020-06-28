@@ -28,28 +28,26 @@ const double COS[8][8] = { { 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1
                            { 0.195090, -0.555570, 0.831470, -0.980785, 0.980785, -0.831470, 0.555570, -0.195090 } };
 
 // Quantization table used in luminance channel (Y)
-const unsigned char QUANT_LUMINANCE[8][8] = { { 4, 3, 3, 4, 6, 7, 8, 10 },
-                                              { 3, 3, 3, 4, 5, 6, 8, 10 },
-                                              { 3, 3, 3, 4, 6, 9, 12, 12 },
-                                              { 4, 4, 4, 7, 9, 12, 12, 17 },
-                                              { 6, 5, 6, 9, 12, 13, 17, 20 },
-                                              { 7, 6, 9, 12, 13, 17, 20, 20 },
-                                              { 8, 8, 12, 12, 17, 20, 20, 20 },
-                                              { 10, 10, 12, 17, 20, 20, 20, 20 } };
+const unsigned char QUANT_LUMINANCE[8][8] = {   { 18.0, 14.0, 14.0, 21.0, 30.0, 35.0, 34.0, 39.0 },
+                                                { 14.0, 16.0, 16.0, 19.0, 26.0, 24.0, 30.0, 39.0 },
+                                                { 14.0, 16.0, 17.0, 21.0, 24.0, 34.0, 46.0, 62.0 },
+                                                { 21.0, 19.0, 21.0, 26.0, 33.0, 48.0, 62.0, 65.0 },
+                                                { 30.0, 26.0, 24.0, 33.0, 51.0, 65.0, 65.0, 65.0 },
+                                                { 35.0, 24.0, 34.0, 48.0, 65.0, 65.0, 65.0, 65.0 },
+                                                { 34.0, 30.0, 46.0, 62.0, 65.0, 65.0, 65.0, 65.0 },
+                                                { 39.0, 39.0, 62.0, 65.0, 65.0, 65.0, 65.0, 65.0 } };
 
 // Quantization table used in chrominance channel (Cb and Cr)
-const unsigned char QUANT_CHROMI[8][8] = { { 4, 5, 8, 15, 20, 20, 20, 20 },
-                                           { 5, 7, 10, 14, 20, 20, 20, 20 },
-                                           { 8, 10, 14, 20, 20, 20, 20, 20 },
-                                           { 15, 14, 20, 20, 20, 20, 20, 20 },
-                                           { 20, 20, 20, 20, 20, 20, 20, 20 },
-                                           { 20, 20, 20, 20, 20, 20, 20, 20 },
-                                           { 20, 20, 20, 20, 20, 20, 20, 20 },
-                                           { 20, 20, 20, 20, 20, 20, 20, 20 } };
+const unsigned char QUANT_CHROMI[8][8] = {  { 20.0, 19.0, 22.0, 27.0, 26.0, 33.0, 49.0, 62.0 },
+                                            { 19.0, 25.0, 23.0, 22.0, 26.0, 33.0, 45.0, 56.0 },
+                                            { 22.0, 23.0, 26.0, 29.0, 33.0, 39.0, 59.0, 65.0 },
+                                            { 27.0, 22.0, 29.0, 36.0, 39.0, 51.0, 65.0, 65.0 },
+                                            { 26.0, 26.0, 33.0, 39.0, 51.0, 62.0, 65.0, 65.0 },
+                                            { 33.0, 33.0, 39.0, 51.0, 62.0, 65.0, 65.0, 65.0 },
+                                            { 49.0, 45.0, 59.0, 65.0, 65.0, 65.0, 65.0, 65.0 },
+                                            { 62.0, 56.0, 65.0, 65.0, 65.0, 65.0, 65.0, 65.0 } };
 
 void bmp_free_channels(BMP_FILE **); // Function to free memory used by channels
-void bmp_free_huff_channels(BMP_FILE **); // Function to free memory used by encoded channels by huffman code
-void bmp_alloc_huff_blocks(BMP_FILE *); // Allocate blocks for huffman code
 void foward_dct(double **); // Calculates the foward DCT-II in 8x8 blocks
 void inverse_dct(double **); // Calculates the inverse DCT-II in 8x8 blocks
 void quantization_luminance(double **); // Apply the quantization in luminance channel
@@ -62,8 +60,8 @@ void print8x8block(double **); // Print the content of an 8x8 block
 int category(unsigned int); // Given then huffman code 'code', returns the category of the bit stream
 unsigned int huffman_code(int); // Returns the correspondent huffman code of value 'value'
 unsigned int inverse_huffman_code(unsigned int); // Calculates the inversed of huffman code
-void write_in(unsigned int **, FILE *); // Writes a 8x8 block in a file
-int fill_buffer(BUFFER *, unsigned int, int); // Function to fill 8 byte buffer
+void write_in(double **, FILE *); // Writes a 8x8 block in a file
+int fill_buffer(BUFFER *, int); // Function to fill 8 byte buffer
 unsigned long extract_value(unsigned long *); // Consume the buffer based in huffman code and computes his inverse
 void read_of(FILE *, double **); // Read
 void print_zigzag(double **);
@@ -98,7 +96,6 @@ struct t_bmp_channels
 {
     unsigned int qt_blocks;
     double ***y, ***cb, ***cr;
-    unsigned int ***huff_y, ***huff_cb, ***huff_cr;
 };
 
 struct t_bmp_file
@@ -119,10 +116,6 @@ BMP_FILE *bmp_read_file(const char *file_name)
             bmp = (BMP_FILE *) malloc(sizeof(BMP_FILE));
             if(bmp != NULL)
             {
-                bmp->channels.huff_y = NULL;
-                bmp->channels.huff_cb = NULL;
-                bmp->channels.huff_cr = NULL;
-
                 fread(&bmp->header.bmpSignature, sizeof(unsigned short), 1, arq);
                 if(bmp->header.bmpSignature == BMP_SIG) // Verify if it's a BMP file
                 {
@@ -463,7 +456,7 @@ void bmp_diff_encode(BMP_FILE *bmp)
             calculate_difference(bmp->channels.cb[i]);
             calculate_difference(bmp->channels.cr[i]);
         }
-        print_zigzag(bmp->channels.y[0]);
+        // print_zigzag(bmp->channels.y[0]);
     }
     else
     {
@@ -789,25 +782,24 @@ unsigned int huffman_code(int value)
 
 unsigned int inverse_huffman_code(unsigned int code)
 {
-    unsigned int value = 0, tmp_value = 0, prefix = 0;
+    unsigned int value = 0, tmp_value = 0;
     unsigned char signal = 0;
-    prefix = code >> 1;
     if(code == 2) // The value is 0
     {
         value = 0;
     }
-    else if((code == 6 || code == 7) && (prefix == 3)) // The value is -1 or 1
-    {
-        tmp_value = code & 0x01;
-        if(tmp_value == 0) // Negative number
-        {
-            value = -1;
-        }
-        else 
-        {
-            value = 1;
-        }
-    }
+    // else if((code == 6 || code == 7)) // The value is -1 or 1
+    // {
+        // tmp_value = code & 0x01;
+        // if(tmp_value == 0) // Negative number
+        // {
+        //     value = -1;
+        // }
+        // else 
+        // {
+        //     value = 1;
+        // }
+    // }
     else if(code >= 16 && code <= 19) // The value is -3,-2 or 2,3
     {
         tmp_value = code & 0x03;
@@ -821,19 +813,19 @@ unsigned int inverse_huffman_code(unsigned int code)
             value = tmp_value;
         }
     }
-    else if(code >= 0 && code <= 7) // The value is -7..-4 or 4..7
-    {
-        tmp_value = code & 0x07;
-        signal = tmp_value & 0x04;
-        if(signal == 0)
-        {
-            value = (-1) * ((~tmp_value) & 0x07);
-        }
-        else 
-        {
-            value = tmp_value;
-        }
-    }
+    // else if((code >= 0 && code <= 7)) // The value is -7..-4 or 4..7
+    // {
+    //     tmp_value = code & 0x07;
+    //     signal = tmp_value & 0x04;
+    //     if(signal == 0)
+    //     {
+    //         value = (-1) * ((~tmp_value) & 0x07);
+    //     }
+    //     else 
+    //     {
+    //         value = tmp_value;
+    //     }
+    // }
     else if(code >= 80 && code <= 95) // The value is -15..-8 or 8..15
     {
         tmp_value = code & 0x0F;
@@ -930,13 +922,24 @@ unsigned int inverse_huffman_code(unsigned int code)
 
 unsigned long extract_value(unsigned long *buffer)
 {
+    unsigned int tmp_value = 0;
+    unsigned char signal = 0;
     unsigned long prefix = 0, value = 0;
     prefix = (*buffer) & 0xC000000000000000;
     if(prefix == 0) // Category 3
     {
         value = (*buffer) & 0xF800000000000000;
         value = (value >> 59);
-        value = inverse_huffman_code(value);
+        tmp_value = value & 0x07;
+        signal = tmp_value & 0x04;
+        if(signal == 0)
+        {
+            value = (-1) * ((~tmp_value) & 0x07);
+        }
+        else 
+        {
+            value = tmp_value;
+        }
         // printf("HEX_VALUE: %d\n", value);
         (*buffer) <<= 5;
     }
@@ -955,7 +958,15 @@ unsigned long extract_value(unsigned long *buffer)
         {
             value = (*buffer) & 0xF000000000000000;
             value = (value >> 60);
-            value = inverse_huffman_code(value);
+            tmp_value = value & 0x01;
+            if(tmp_value == 0) // Negative number
+            {
+                value = -1;
+            }
+            else 
+            {
+                value = 1;
+            }
             // printf("HEX_VALUE: %d\n", value);
             (*buffer) <<= 4;
         }
@@ -1103,48 +1114,48 @@ int category(unsigned int code)
     return value;
 }
 
-void bmp_alloc_huff_blocks(BMP_FILE *bmp)
-{
-    if(bmp != NULL)
-    {
-        // Alloc pixels for huffman code
-        bmp->channels.huff_y = (unsigned int ***) malloc(sizeof(unsigned int **) * bmp->channels.qt_blocks);
-        bmp->channels.huff_cb = (unsigned int ***) malloc(sizeof(unsigned int **) * bmp->channels.qt_blocks);
-        bmp->channels.huff_cr = (unsigned int ***) malloc(sizeof(unsigned int **) * bmp->channels.qt_blocks);
-        for(int i = 0; i < bmp->channels.qt_blocks; i++)
-        {
-            bmp->channels.huff_y[i] = (unsigned int **) malloc(sizeof(unsigned int *) * 8);
-            bmp->channels.huff_cb[i] = (unsigned int **) malloc(sizeof(unsigned int *) * 8);
-            bmp->channels.huff_cr[i] = (unsigned int **) malloc(sizeof(unsigned int *) * 8);
-            for(int j = 0; j < 8; j++)
-            {
-                bmp->channels.huff_y[i][j] = (unsigned int *) malloc(sizeof(unsigned int) * 8);
-                bmp->channels.huff_cb[i][j] = (unsigned int *) malloc(sizeof(unsigned int) * 8);
-                bmp->channels.huff_cr[i][j] = (unsigned int *) malloc(sizeof(unsigned int) * 8);
-            }
-        }
-    }
-}
+// void bmp_alloc_huff_blocks(BMP_FILE *bmp)
+// {
+//     if(bmp != NULL)
+//     {
+//         // Alloc pixels for huffman code
+//         bmp->channels.huff_y = (unsigned int ***) malloc(sizeof(unsigned int **) * bmp->channels.qt_blocks);
+//         bmp->channels.huff_cb = (unsigned int ***) malloc(sizeof(unsigned int **) * bmp->channels.qt_blocks);
+//         bmp->channels.huff_cr = (unsigned int ***) malloc(sizeof(unsigned int **) * bmp->channels.qt_blocks);
+//         for(int i = 0; i < bmp->channels.qt_blocks; i++)
+//         {
+//             bmp->channels.huff_y[i] = (unsigned int **) malloc(sizeof(unsigned int *) * 8);
+//             bmp->channels.huff_cb[i] = (unsigned int **) malloc(sizeof(unsigned int *) * 8);
+//             bmp->channels.huff_cr[i] = (unsigned int **) malloc(sizeof(unsigned int *) * 8);
+//             for(int j = 0; j < 8; j++)
+//             {
+//                 bmp->channels.huff_y[i][j] = (unsigned int *) malloc(sizeof(unsigned int) * 8);
+//                 bmp->channels.huff_cb[i][j] = (unsigned int *) malloc(sizeof(unsigned int) * 8);
+//                 bmp->channels.huff_cr[i][j] = (unsigned int *) malloc(sizeof(unsigned int) * 8);
+//             }
+//         }
+//     }
+// }
 
-void bmp_compute_huffman_code(BMP_FILE *bmp)
-{
-    if(bmp != NULL)
-    {
-        bmp_alloc_huff_blocks(bmp);
-        for(int i = 0; i < bmp->channels.qt_blocks; i++)
-        {
-            for(int j = 0; j < 8; j++)
-            {
-                for(int k = 0; k < 8; k++)
-                {
-                    bmp->channels.huff_y[i][j][k] = huffman_code((int) bmp->channels.y[i][j][k]);
-                    bmp->channels.huff_cb[i][j][k] = huffman_code((int) bmp->channels.cb[i][j][k]);
-                    bmp->channels.huff_cr[i][j][k] = huffman_code((int) bmp->channels.cr[i][j][k]);
-                }
-            }
-        }
-    }
-}
+// void bmp_compute_huffman_code(BMP_FILE *bmp)
+// {
+//     if(bmp != NULL)
+//     {
+//         bmp_alloc_huff_blocks(bmp);
+//         for(int i = 0; i < bmp->channels.qt_blocks; i++)
+//         {
+//             for(int j = 0; j < 8; j++)
+//             {
+//                 for(int k = 0; k < 8; k++)
+//                 {
+//                     bmp->channels.huff_y[i][j][k] = huffman_code((int) bmp->channels.y[i][j][k]);
+//                     bmp->channels.huff_cb[i][j][k] = huffman_code((int) bmp->channels.cb[i][j][k]);
+//                     bmp->channels.huff_cr[i][j][k] = huffman_code((int) bmp->channels.cr[i][j][k]);
+//                 }
+//             }
+//         }
+//     }
+// }
 
 void bmp_compress(BMP_FILE *bmp, const char *file_name)
 {
@@ -1176,10 +1187,11 @@ void bmp_compress(BMP_FILE *bmp, const char *file_name)
                 fseek(arq, bmp->header.bmpPixelDataOffset, SEEK_SET);
                 for(int i = 0; i < bmp->channels.qt_blocks; i++)
                 {
-                    write_in(bmp->channels.huff_y[i], arq);
-                    write_in(bmp->channels.huff_cb[i], arq);
-                    write_in(bmp->channels.huff_cr[i], arq);
+                    write_in(bmp->channels.y[i], arq);
+                    write_in(bmp->channels.cb[i], arq);
+                    write_in(bmp->channels.cr[i], arq);
                 }
+                // write_in(bmp->channels.y[0], arq);
             }
             fclose(arq);
         }
@@ -1198,10 +1210,6 @@ BMP_FILE *bmp_decompress(const char *file_name)
             bmp = (BMP_FILE *) malloc(sizeof(BMP_FILE));
             if(bmp != NULL)
             {
-                bmp->channels.huff_y = NULL;
-                bmp->channels.huff_cb = NULL;
-                bmp->channels.huff_cr = NULL;
-
                 fread(&bmp->header.bmpSignature, sizeof(unsigned short), 1, arq);
                 if(bmp->header.bmpSignature == BMP_SIG) // Verify if it's a BMP file
                 {
@@ -1241,12 +1249,12 @@ BMP_FILE *bmp_decompress(const char *file_name)
                     }
 
                     fseek(arq, bmp->header.bmpPixelDataOffset, SEEK_SET);
-                    // for(int k = 0; k < bmp->channels.qt_blocks; k++)
-                    // {
-                        read_of(arq, bmp->channels.y[0]);
-                        // read_of(arq, bmp->channels.cb[0]);
-                        // read_of(arq, bmp->channels.cr[0]);
-                    // }
+                    for(int k = 0; k < bmp->channels.qt_blocks; k++)
+                    {
+                        read_of(arq, bmp->channels.y[k]);
+                        read_of(arq, bmp->channels.cb[k]);
+                        read_of(arq, bmp->channels.cr[k]);
+                    }
                 }
             }
         }
@@ -1255,22 +1263,21 @@ BMP_FILE *bmp_decompress(const char *file_name)
     return bmp;
 }
 
-void write_in(unsigned int **block, FILE *arq)
+void write_in(double **block, FILE *arq)
 {
     BUFFER b;
     b.buffer = 0;
     b.remaining_bits = 64;
     unsigned long aux = 0;
     unsigned char zero_qt = 0, tmp_byte = 0x00;
-    const unsigned char zero_symbol = 0x02;
     int x = 0, y = 1, max = 2;
-    fill_buffer(&b, block[0][0], category(block[0][0]));
+    fill_buffer(&b, (int) block[0][0]);
 
     for(int i = 1; i < 8; i++, max++)
     {
         for(int j = 1; j < max; j++)
         {
-            if(block[x][y] == zero_symbol)
+            if(block[x][y] == 0)
             {
                 zero_qt++;
             }
@@ -1280,8 +1287,8 @@ void write_in(unsigned int **block, FILE *arq)
                 {
                     if(b.remaining_bits >= 11)
                     {
-                        fill_buffer(&b, huffman_code(0), category(huffman_code(0)));
-                        if(fill_buffer(&b, huffman_code(zero_qt), category(huffman_code(zero_qt))) != 0)
+                        fill_buffer(&b, 0);
+                        if(fill_buffer(&b, zero_qt) != 0)
                         {
                             b.buffer = (b.buffer << 8) | 0xFF; // Put the EOB prefix
                             b.remaining_bits -= 8;
@@ -1289,7 +1296,7 @@ void write_in(unsigned int **block, FILE *arq)
                             fwrite(&(b.buffer), sizeof(unsigned long), 1, arq);
                             b.buffer = 0;
                             b.remaining_bits = 64;
-                            fill_buffer(&b, huffman_code(zero_qt), category(huffman_code(zero_qt)));
+                            fill_buffer(&b, zero_qt);
                         }
                     }
                     else 
@@ -1300,12 +1307,12 @@ void write_in(unsigned int **block, FILE *arq)
                         fwrite(&(b.buffer), sizeof(unsigned long), 1, arq);
                         b.buffer = 0;
                         b.remaining_bits = 64;
-                        fill_buffer(&b, huffman_code(0), category(huffman_code(0)));
-                        fill_buffer(&b, huffman_code(zero_qt), category(huffman_code(zero_qt)));
+                        fill_buffer(&b, 0);
+                        fill_buffer(&b, zero_qt);
                     }
                     zero_qt = 0;
                 }
-                if(fill_buffer(&b, block[x][y], category(block[x][y])) != 0)
+                if(fill_buffer(&b, (int) block[x][y]) != 0)
                 {
                     b.buffer = (b.buffer << 8) | 0xFF; // Put the EOB prefix
                     b.remaining_bits -= 8;
@@ -1313,11 +1320,10 @@ void write_in(unsigned int **block, FILE *arq)
                     fwrite(&(b.buffer), sizeof(unsigned long), 1, arq);
                     b.buffer = 0;
                     b.remaining_bits = 64;
-                    fill_buffer(&b, block[x][y], category(block[x][y]));
+                    fill_buffer(&b, (int) block[x][y]);
                 }
             }
             
-            printf("BUFFER: %lX\n", b.buffer);
             if((i % 2) == 0)
             {
                 x--;
@@ -1330,7 +1336,7 @@ void write_in(unsigned int **block, FILE *arq)
             }
         }
         
-        if(block[x][y] == zero_symbol)
+        if(block[x][y] == 0)
         {
             zero_qt++;
         }
@@ -1340,8 +1346,8 @@ void write_in(unsigned int **block, FILE *arq)
             {
                 if(b.remaining_bits >= 11)
                 {
-                    fill_buffer(&b, huffman_code(0), category(huffman_code(0)));
-                    if(fill_buffer(&b, huffman_code(zero_qt), category(huffman_code(zero_qt))) != 0)
+                    fill_buffer(&b, 0);
+                    if(fill_buffer(&b, zero_qt) != 0)
                     {
                         b.buffer = (b.buffer << 8) | 0xFF; // Put the EOB prefix
                         b.remaining_bits -= 8;
@@ -1349,7 +1355,7 @@ void write_in(unsigned int **block, FILE *arq)
                         fwrite(&(b.buffer), sizeof(unsigned long), 1, arq);
                         b.buffer = 0;
                         b.remaining_bits = 64;
-                        fill_buffer(&b, huffman_code(zero_qt), category(huffman_code(zero_qt)));
+                        fill_buffer(&b, zero_qt);
                     }
                 }
                 else 
@@ -1360,12 +1366,12 @@ void write_in(unsigned int **block, FILE *arq)
                     fwrite(&(b.buffer), sizeof(unsigned long), 1, arq);
                     b.buffer = 0;
                     b.remaining_bits = 64;
-                    fill_buffer(&b, huffman_code(0), category(huffman_code(0)));
-                    fill_buffer(&b, huffman_code(zero_qt), category(huffman_code(zero_qt)));
+                    fill_buffer(&b, 0);
+                    fill_buffer(&b, zero_qt);
                 }
                 zero_qt = 0;
             }
-            if(fill_buffer(&b, block[x][y], category(block[x][y])) != 0)
+            if(fill_buffer(&b, (int) block[x][y]) != 0)
             {
                 b.buffer = (b.buffer << 8) | 0xFF; // Put the EOB prefix
                 b.remaining_bits -= 8;
@@ -1373,10 +1379,10 @@ void write_in(unsigned int **block, FILE *arq)
                 fwrite(&(b.buffer), sizeof(unsigned long), 1, arq);
                 b.buffer = 0;
                 b.remaining_bits = 64;
-                fill_buffer(&b, block[x][y], category(block[x][y]));
+                fill_buffer(&b, (int) block[x][y]);
             }
         }
-        printf("BUFFER: %lX\n", b.buffer);
+
         if((i % 2) == 0)
         {
             y++;
@@ -1394,7 +1400,7 @@ void write_in(unsigned int **block, FILE *arq)
     {
         for(int j = 0; j < max; j++)
         {
-            if(block[x][y] == zero_symbol)
+            if(block[x][y] == 0)
             {
                 zero_qt++;
             }
@@ -1404,8 +1410,8 @@ void write_in(unsigned int **block, FILE *arq)
                 {
                     if(b.remaining_bits >= 11)
                     {
-                        fill_buffer(&b, huffman_code(0), category(huffman_code(0)));
-                        if(fill_buffer(&b, huffman_code(zero_qt), category(huffman_code(zero_qt))) != 0)
+                        fill_buffer(&b, 0);
+                        if(fill_buffer(&b, zero_qt) != 0)
                         {
                             b.buffer = (b.buffer << 8) | 0xFF; // Put the EOB prefix
                             b.remaining_bits -= 8;
@@ -1413,7 +1419,7 @@ void write_in(unsigned int **block, FILE *arq)
                             fwrite(&(b.buffer), sizeof(unsigned long), 1, arq);
                             b.buffer = 0;
                             b.remaining_bits = 64;
-                            fill_buffer(&b, huffman_code(zero_qt), category(huffman_code(zero_qt)));
+                            fill_buffer(&b, zero_qt);
                         }
                     }
                     else 
@@ -1424,12 +1430,12 @@ void write_in(unsigned int **block, FILE *arq)
                         fwrite(&(b.buffer), sizeof(unsigned long), 1, arq);
                         b.buffer = 0;
                         b.remaining_bits = 64;
-                        fill_buffer(&b, huffman_code(0), category(huffman_code(0)));
-                        fill_buffer(&b, huffman_code(zero_qt), category(huffman_code(zero_qt)));
+                        fill_buffer(&b, 0);
+                        fill_buffer(&b, zero_qt);
                     }
                     zero_qt = 0;
                 }
-                if(fill_buffer(&b, block[x][y], category(block[x][y])) != 0)
+                if(fill_buffer(&b, (int) block[x][y]) != 0)
                 {
                     b.buffer = (b.buffer << 8) | 0xFF; // Put the EOB prefix
                     b.remaining_bits -= 8;
@@ -1437,11 +1443,10 @@ void write_in(unsigned int **block, FILE *arq)
                     fwrite(&(b.buffer), sizeof(unsigned long), 1, arq);
                     b.buffer = 0;
                     b.remaining_bits = 64;
-                    fill_buffer(&b, block[x][y], category(block[x][y]));
+                    fill_buffer(&b, (int) block[x][y]);
                 }
             }
 
-            printf("BUFFER: %lX\n", b.buffer);
             if((i % 2) == 0)
             {
                 x++;
@@ -1454,7 +1459,7 @@ void write_in(unsigned int **block, FILE *arq)
             }
         }
 
-        if(block[x][y] == zero_symbol)
+        if(block[x][y] == 0)
         {
             zero_qt++;
         }
@@ -1464,8 +1469,8 @@ void write_in(unsigned int **block, FILE *arq)
             {
                 if(b.remaining_bits >= 11)
                 {
-                    fill_buffer(&b, huffman_code(0), category(huffman_code(0)));
-                    if(fill_buffer(&b, huffman_code(zero_qt), category(huffman_code(zero_qt))) != 0)
+                    fill_buffer(&b, 0);
+                    if(fill_buffer(&b, zero_qt) != 0)
                     {
                         b.buffer = (b.buffer << 8) | 0xFF; // Put the EOB prefix
                         b.remaining_bits -= 8;
@@ -1473,7 +1478,7 @@ void write_in(unsigned int **block, FILE *arq)
                         fwrite(&(b.buffer), sizeof(unsigned long), 1, arq);
                         b.buffer = 0;
                         b.remaining_bits = 64;
-                        fill_buffer(&b, huffman_code(zero_qt), category(huffman_code(zero_qt)));
+                        fill_buffer(&b, zero_qt);
                     }
                 }
                 else 
@@ -1484,12 +1489,12 @@ void write_in(unsigned int **block, FILE *arq)
                     fwrite(&(b.buffer), sizeof(unsigned long), 1, arq);
                     b.buffer = 0;
                     b.remaining_bits = 64;
-                    fill_buffer(&b, huffman_code(0), category(huffman_code(0)));
-                    fill_buffer(&b, huffman_code(zero_qt), category(huffman_code(zero_qt)));
+                    fill_buffer(&b, 0);
+                    fill_buffer(&b, zero_qt);
                 }
                 zero_qt = 0;
             }
-            if(fill_buffer(&b, block[x][y], category(block[x][y])) != 0)
+            if(fill_buffer(&b, (int) block[x][y]) != 0)
             {
                 b.buffer = (b.buffer << 8) | 0xFF; // Put the EOB prefix
                 b.remaining_bits -= 8;
@@ -1497,11 +1502,10 @@ void write_in(unsigned int **block, FILE *arq)
                 fwrite(&(b.buffer), sizeof(unsigned long), 1, arq);
                 b.buffer = 0;
                 b.remaining_bits = 64;
-                fill_buffer(&b, block[x][y], category(block[x][y]));
+                fill_buffer(&b, (int) block[x][y]);
             }
         }
 
-        printf("BUFFER: %lX\n", b.buffer);
         if((i % 2) == 0)
         {
             y++;
@@ -1512,13 +1516,13 @@ void write_in(unsigned int **block, FILE *arq)
         }
     }
 
-    if(block[x][y] == zero_symbol)
+    if(block[x][y] == 0)
     {
         zero_qt++;
         if(b.remaining_bits >= 11)
         {
-            fill_buffer(&b, huffman_code(0), category(huffman_code(0)));
-            if(fill_buffer(&b, huffman_code(zero_qt), category(huffman_code(zero_qt))) != 0)
+            fill_buffer(&b, 0);
+            if(fill_buffer(&b, zero_qt) != 0)
             {
                 b.buffer = (b.buffer << 8) | 0xFF; // Put the EOB prefix
                 b.remaining_bits -= 8;
@@ -1526,7 +1530,7 @@ void write_in(unsigned int **block, FILE *arq)
                 fwrite(&(b.buffer), sizeof(unsigned long), 1, arq);  
                 b.buffer = 0;
                 b.remaining_bits = 64;
-                fill_buffer(&b, huffman_code(zero_qt), category(huffman_code(zero_qt)));
+                fill_buffer(&b, zero_qt);
             }
         }
         else 
@@ -1537,13 +1541,13 @@ void write_in(unsigned int **block, FILE *arq)
             fwrite(&(b.buffer), sizeof(unsigned long), 1, arq);  
             b.buffer = 0;
             b.remaining_bits = 64;
-            fill_buffer(&b, huffman_code(0), category(huffman_code(0)));
-            fill_buffer(&b, huffman_code(zero_qt), category(huffman_code(zero_qt)));
+            fill_buffer(&b, 0);
+            fill_buffer(&b, zero_qt);
         }
     }
     else
     {
-        if(fill_buffer(&b, block[x][y], category(block[x][y])) != 0)
+        if(fill_buffer(&b, (int) block[x][y]) != 0)
         {
             b.buffer = (b.buffer << 8) | 0xFF; // Put the EOB prefix
             b.remaining_bits -= 8;
@@ -1551,14 +1555,12 @@ void write_in(unsigned int **block, FILE *arq)
             fwrite(&(b.buffer), sizeof(unsigned long), 1, arq);
             b.buffer = 0;
             b.remaining_bits = 64;
-            fill_buffer(&b, block[x][y], category(block[x][y]));
+            fill_buffer(&b, (int) block[x][y]);
         }
     }
-    printf("BITS REMAINING: %hhu\n", b.remaining_bits);
     b.buffer = (b.buffer << 8) | 0xFF; // Put the EOB prefix
     b.remaining_bits -= 8;
     b.buffer = b.buffer << b.remaining_bits;
-    printf("FINAL BUFFER: %lX\n", b.buffer);
     fwrite(&b.buffer, sizeof(unsigned long), 1, arq);
 }
 
@@ -1567,20 +1569,18 @@ void read_of(FILE *arq, double **vet)
     unsigned long buffer = 0;
     int x = 0, y = 1, max = 2, rec_block[64], value = EOB, zero_qt = 0, ptr_rec_block = 0;
     fread(&buffer, sizeof(unsigned long), 1, arq);
-    // printf("BUFFER: %lX\n", buffer);
     while(1)
     {
-        // printf("PTR REC BLOCK: %d\n", ptr_rec_block);
-        if(feof(arq) != 0 || ptr_rec_block >= 63)
+        printf("PTR REC BLOCK: %d\n", ptr_rec_block);
+        if(feof(arq) != 0 || ptr_rec_block >= 64)
         {
             break;
         }
         else 
         {
-            if(buffer == 0 && ptr_rec_block < 64)
+            if(buffer == 0 && ptr_rec_block < 63)
             {
                 fread(&buffer, sizeof(unsigned long), 1, arq);
-                // printf("BUFFER: %lX\n", buffer);
             }
             else 
             {
@@ -1591,215 +1591,206 @@ void read_of(FILE *arq, double **vet)
                     // if(zero_qt == EOB)
                     while(zero_qt > 0)
                     {
-                        printf("%d ", value, zero_qt);
+                        rec_block[ptr_rec_block] = value;
                         ptr_rec_block++;
                         zero_qt--;
                     }
                 }
                 else if(value != EOB)
                 {
-                    printf("%d ", value);
+                    rec_block[ptr_rec_block] = value;
                     ptr_rec_block++;
                 }
-                // if(ptr_rec_block < 64)
-                // {
-                //     value = extract_value(&buffer);
-                //     if(value != EOB)
-                //     {
-                //         if(value == 0)
-                //         {
-                //             zero_qt = extract_value(&buffer);
-                //             while (zero_qt > 0)
-                //             {
-                //                 rec_block[ptr_rec_block++] = 0;
-                //                 zero_qt--;
-                //             }
-                //         }
-                //         else 
-                //         {
-                //             rec_block[ptr_rec_block++] = value;
-                //         }
-                //     }
-                // }
             }
         }
     }
-    printf("\n");
-    // for(int i = 0; i < 64; i++)
-    // {
-    //     printf("%d ", rec_block[i]);
-    // }
-    // printf("\n");
 
-    // ptr_rec_block = 0;
-    // vet[0][0] = rec_block[ptr_rec_block++];
-    // for(int i = 1; i < 8; i++, max++)
-    // {
-    //     for(int j = 1; j < max; j++)
-    //     {
-    //         vet[x][y] = rec_block[ptr_rec_block++];
-    //         if((i % 2) == 0)
-    //         {
-    //             x--;
-    //             y++;
-    //         }
-    //         else 
-    //         {
-    //             x++;
-    //             y--;
-    //         }
-    //     }
+    ptr_rec_block = 0;
+    vet[0][0] = rec_block[ptr_rec_block++];
+    for(int i = 1; i < 8; i++, max++)
+    {
+        for(int j = 1; j < max; j++)
+        {
+            vet[x][y] = rec_block[ptr_rec_block++];
+            if((i % 2) == 0)
+            {
+                x--;
+                y++;
+            }
+            else 
+            {
+                x++;
+                y--;
+            }
+        }
         
-    //     vet[x][y] = rec_block[ptr_rec_block++];
-    //     // Logic Here
-    //     if((i % 2) == 0)
-    //     {
-    //         y++;
-    //     }
-    //     else 
-    //     {
-    //         x++;
-    //     }
-    // }
+        vet[x][y] = rec_block[ptr_rec_block++];
+        // Logic Here
+        if((i % 2) == 0)
+        {
+            y++;
+        }
+        else 
+        {
+            x++;
+        }
+    }
 
-    // // // Second half
-    // max = 6;
-    // x = 7;
-    // y = 1;
-    // for(int i = 1; i < 7; i++, max--)
-    // {
-    //     for(int j = 0; j < max; j++)
-    //     {
-    //         vet[x][y] = rec_block[ptr_rec_block++];
-    //         // Logic Here
-    //         if((i % 2) == 0)
-    //         {
-    //             x++;
-    //             y--;
-    //         }
-    //         else 
-    //         {
-    //             x--;
-    //             y++;
-    //         }
-    //     }
-    //     vet[x][y] = rec_block[ptr_rec_block++];
-    //     // Logic Here
-    //     if((i % 2) == 0)
-    //     {
-    //         y++;
-    //     }
-    //     else 
-    //     {
-    //         x++;
-    //     }
-    // }
-    // vet[x][y] = rec_block[ptr_rec_block++];
+    // // Second half
+    max = 6;
+    x = 7;
+    y = 1;
+    for(int i = 1; i < 7; i++, max--)
+    {
+        for(int j = 0; j < max; j++)
+        {
+            vet[x][y] = rec_block[ptr_rec_block++];
+            // Logic Here
+            if((i % 2) == 0)
+            {
+                x++;
+                y--;
+            }
+            else 
+            {
+                x--;
+                y++;
+            }
+        }
+        vet[x][y] = rec_block[ptr_rec_block++];
+        // Logic Here
+        if((i % 2) == 0)
+        {
+            y++;
+        }
+        else 
+        {
+            x++;
+        }
+    }
+    vet[x][y] = rec_block[ptr_rec_block++];
     // Logic Here
 }
 
-int fill_buffer(BUFFER *buffer, unsigned int data, int cat)
+int fill_buffer(BUFFER *buffer, int data)
 {
+    unsigned int cat = 0, huffman_encoded = 0;
     int status = -1;
-    if(cat == 0)
-    {
-        if(buffer->remaining_bits >= 11) // The necessary bits plus EOB prefix
-        {
-            buffer->buffer = (buffer->buffer << 3) | data;
-            buffer->remaining_bits -= 3;
-            status = 0;
-        }
-    }
-    else if(cat == 1)
+    huffman_encoded = huffman_code(data); // Encodes data in huffman code
+    if(data == 1 || data == -1) // Category 1
     {
         if(buffer->remaining_bits >= 12)
         {
-            buffer->buffer = (buffer->buffer << 4) | data;
+            buffer->buffer = (buffer->buffer << 4) | huffman_encoded;
             buffer->remaining_bits -= 4;
             status = 0;
         }
     }
-    else if(cat == 2)
+    else if(data >= -7 && data <= -4) // Category 3
     {
         if(buffer->remaining_bits >= 13)
         {
-            buffer->buffer = (buffer->buffer << 5) | data;
+            buffer->buffer = (buffer->buffer << 5) | huffman_encoded;
             buffer->remaining_bits -= 5;
             status = 0;
         }
     }
-    else if(cat == 3)
+    else if(data >= 4 && data <= 7) // Category 3
     {
         if(buffer->remaining_bits >= 13)
         {
-            buffer->buffer = (buffer->buffer << 5) | data;
+            buffer->buffer = (buffer->buffer << 5) | huffman_encoded;
             buffer->remaining_bits -= 5;
             status = 0;
         }
     }
-    else if(cat == 4)
+    else
     {
-        if(buffer->remaining_bits >= 15)
+        // huffman_encoded = huffman_code(data);
+        cat = category(huffman_encoded);
+        if(cat == 0)
         {
-            buffer->buffer = (buffer->buffer << 7) | data;
-            buffer->remaining_bits -= 7;
-            status = 0;
+            if(buffer->remaining_bits >= 11) // The necessary bits plus EOB prefix
+            {
+                buffer->buffer = (buffer->buffer << 3) | huffman_encoded;
+                buffer->remaining_bits -= 3;
+                status = 0;
+            }
+        }
+        else if(cat == 2)
+        {
+            if(buffer->remaining_bits >= 13)
+            {
+                buffer->buffer = (buffer->buffer << 5) | huffman_encoded;
+                buffer->remaining_bits -= 5;
+                status = 0;
+            }
+        }
+        else if(cat == 4)
+        {
+            if(buffer->remaining_bits >= 15)
+            {
+                buffer->buffer = (buffer->buffer << 7) | huffman_encoded;
+                buffer->remaining_bits -= 7;
+                status = 0;
+            }
+        }
+        else if(cat == 5)
+        {
+            if(buffer->remaining_bits >= 16)
+            {
+                buffer->buffer = (buffer->buffer << 8) | huffman_encoded;
+                buffer->remaining_bits -= 8;
+                status = 0;
+            }
+        }
+        else if(cat == 6)
+        {
+            if(buffer->remaining_bits >= 18)
+            {
+                buffer->buffer = (buffer->buffer << 10) | huffman_encoded;
+                buffer->remaining_bits -= 10;
+                status = 0;
+            }
+        }
+        else if(cat == 7)
+        {
+            if(buffer->remaining_bits >= 20)
+            {
+                buffer->buffer = (buffer->buffer << 12) | huffman_encoded;
+                buffer->remaining_bits -= 12;
+                status = 0;
+            }
+        }
+        else if(cat == 8)
+        {
+            if(buffer->remaining_bits >= 22)
+            {
+                buffer->buffer = (buffer->buffer << 14) | huffman_encoded;
+                buffer->remaining_bits -= 14;
+                status = 0;
+            }
+        }
+        else if(cat == 9)
+        {
+            if(buffer->remaining_bits >= 24)
+            {
+                buffer->buffer = (buffer->buffer << 16) | huffman_encoded;
+                buffer->remaining_bits -= 16;
+                status = 0;
+            }
+        }
+        else if(cat == 10)
+        {
+            if(buffer->remaining_bits >= 26)
+            {
+                buffer->buffer = (buffer->buffer << 18) | huffman_encoded;
+                buffer->remaining_bits -= 18;
+                status = 0;
+            }
         }
     }
-    else if(cat == 5)
-    {
-        if(buffer->remaining_bits >= 16)
-        {
-            buffer->buffer = (buffer->buffer << 8) | data;
-            buffer->remaining_bits -= 8;
-            status = 0;
-        }
-    }
-    else if(cat == 6)
-    {
-        if(buffer->remaining_bits >= 18)
-        {
-            buffer->buffer = (buffer->buffer << 10) | data;
-            buffer->remaining_bits -= 10;
-            status = 0;
-        }
-    }
-    else if(cat == 7)
-    {
-        if(buffer->remaining_bits >= 20)
-        {
-            buffer->buffer = (buffer->buffer << 12) | data;
-            buffer->remaining_bits -= 12;
-            status = 0;
-        }
-    }
-    else if(cat == 8)
-    {
-        if(buffer->remaining_bits >= 22)
-        {
-            buffer->buffer = (buffer->buffer << 14) | data;
-            buffer->remaining_bits -= 14;
-            status = 0;
-        }
-    }
-    else if(cat == 9)
-    {
-        if(buffer->remaining_bits >= 24)
-        {
-            buffer->buffer = (buffer->buffer << 16) | data;
-            buffer->remaining_bits -= 16;
-            status = 0;
-        }
-    }
-    else if(cat == 10)
-    {
-        if(buffer->remaining_bits >= 26)
-        {
-            buffer->buffer = (buffer->buffer << 18) | data;
-            buffer->remaining_bits -= 18;
-            status = 0;
-        }
-    }
+    
     return status;
 }
 
@@ -1833,40 +1824,11 @@ void bmp_free_channels(BMP_FILE **bmp)
     }
 }
 
-void bmp_free_huff_channels(BMP_FILE **bmp)
-{
-    if((*bmp) != NULL)
-    {
-        for(int i = 0; i < (*bmp)->channels.qt_blocks; i++)
-        {
-            for(int j = 0; j < 8; j++)
-            {
-                free((*bmp)->channels.huff_y[i][j]);
-                free((*bmp)->channels.huff_cb[i][j]);
-                free((*bmp)->channels.huff_cr[i][j]);
-            }
-            free((*bmp)->channels.huff_y[i]);
-            free((*bmp)->channels.huff_cb[i]);
-            free((*bmp)->channels.huff_cr[i]);
-            (*bmp)->channels.huff_y[i] = NULL;
-            (*bmp)->channels.huff_cb[i] = NULL;
-            (*bmp)->channels.huff_cr[i] = NULL;
-        }
-        free((*bmp)->channels.huff_y);
-        free((*bmp)->channels.huff_cb);
-        free((*bmp)->channels.huff_cr);
-    }
-}
-
 void bmp_destroy(BMP_FILE **bmp)
 {
     if((*bmp) != NULL)
     {
         bmp_free_channels(bmp);
-        if((*bmp)->channels.huff_y != NULL && (*bmp)->channels.huff_cb != NULL && (*bmp)->channels.huff_cr != NULL)
-        {
-            bmp_free_huff_channels(bmp);
-        }
         free((*bmp));
         (*bmp) = NULL;
     }
