@@ -11,8 +11,6 @@
 		void bmp_inverse_quantization(BMP_FILE *); // Apply the inverse quantization in all channels
 		void bmp_diff_encode(BMP_FILE *); // Calculate delta encoding for every image 8x8 block
 		void bmp_diff_decode(BMP_FILE *); // Decodes delta encoding for every image 8x8 block
-		void bmp_compute_huffman_code(BMP_FILE *); // Alloc blocks of encoded huffman code and encode all 8x8 blocks
-		void bmp_compute_inv_huffman_code(BMP_FILE *); //
 		void bmp_compress(BMP_FILE *, const char *); // Creates frame buffer and save file in a compressed format
 		BMP_FILE *bmp_decompress(const char *); // Decompress file compressed by bmp_compress
 		BMP_CHANNELS *bmp_get_channels();
