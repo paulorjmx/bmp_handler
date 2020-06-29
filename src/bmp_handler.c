@@ -63,8 +63,8 @@ unsigned int inverse_huffman_code(unsigned int); // Calculates the inversed of h
 void write_in(double **, FILE *); // Writes a 8x8 block in a file
 int fill_buffer(BUFFER *, int); // Function to fill 8 byte buffer
 unsigned long extract_value(unsigned long *); // Consume the buffer based in huffman code and computes his inverse
-void read_of(FILE *, double **); // Read
-void print_zigzag(double **);
+void read_of(FILE *, double **); // Read the compressed file and recover the data
+void print_zigzag(double **); // Print a 2d array in a zig zag style
 
 
 typedef struct t_bmp_info_header
