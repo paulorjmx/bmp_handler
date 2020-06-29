@@ -1065,23 +1065,14 @@ unsigned long extract_value(unsigned long *buffer)
 
 int category(unsigned int code)
 {
-    int value = -1, prefix = 0;
-    prefix = code >> 1;
+    int value = -1;
     if(code == 2) // The value is 0
     {
         value = 0;
     }
-    else if((code == 6 || code == 7) && (prefix == 3)) // The value is -1 or 1
-    {
-        value = 1;
-    }
     else if(code >= 16 && code <= 19) // The value is -3,-2 or 2,3
     {
         value = 2;
-    }
-    else if(code >= 0 && code <= 7) // The value is -7..-4 or 4..7
-    {
-        value = 3;
     }
     else if(code >= 80 && code <= 95) // The value is -15..-8 or 8..15
     {
@@ -1113,49 +1104,6 @@ int category(unsigned int code)
     }
     return value;
 }
-
-// void bmp_alloc_huff_blocks(BMP_FILE *bmp)
-// {
-//     if(bmp != NULL)
-//     {
-//         // Alloc pixels for huffman code
-//         bmp->channels.huff_y = (unsigned int ***) malloc(sizeof(unsigned int **) * bmp->channels.qt_blocks);
-//         bmp->channels.huff_cb = (unsigned int ***) malloc(sizeof(unsigned int **) * bmp->channels.qt_blocks);
-//         bmp->channels.huff_cr = (unsigned int ***) malloc(sizeof(unsigned int **) * bmp->channels.qt_blocks);
-//         for(int i = 0; i < bmp->channels.qt_blocks; i++)
-//         {
-//             bmp->channels.huff_y[i] = (unsigned int **) malloc(sizeof(unsigned int *) * 8);
-//             bmp->channels.huff_cb[i] = (unsigned int **) malloc(sizeof(unsigned int *) * 8);
-//             bmp->channels.huff_cr[i] = (unsigned int **) malloc(sizeof(unsigned int *) * 8);
-//             for(int j = 0; j < 8; j++)
-//             {
-//                 bmp->channels.huff_y[i][j] = (unsigned int *) malloc(sizeof(unsigned int) * 8);
-//                 bmp->channels.huff_cb[i][j] = (unsigned int *) malloc(sizeof(unsigned int) * 8);
-//                 bmp->channels.huff_cr[i][j] = (unsigned int *) malloc(sizeof(unsigned int) * 8);
-//             }
-//         }
-//     }
-// }
-
-// void bmp_compute_huffman_code(BMP_FILE *bmp)
-// {
-//     if(bmp != NULL)
-//     {
-//         bmp_alloc_huff_blocks(bmp);
-//         for(int i = 0; i < bmp->channels.qt_blocks; i++)
-//         {
-//             for(int j = 0; j < 8; j++)
-//             {
-//                 for(int k = 0; k < 8; k++)
-//                 {
-//                     bmp->channels.huff_y[i][j][k] = huffman_code((int) bmp->channels.y[i][j][k]);
-//                     bmp->channels.huff_cb[i][j][k] = huffman_code((int) bmp->channels.cb[i][j][k]);
-//                     bmp->channels.huff_cr[i][j][k] = huffman_code((int) bmp->channels.cr[i][j][k]);
-//                 }
-//             }
-//         }
-//     }
-// }
 
 void bmp_compress(BMP_FILE *bmp, const char *file_name)
 {
@@ -1571,7 +1519,6 @@ void read_of(FILE *arq, double **vet)
     fread(&buffer, sizeof(unsigned long), 1, arq);
     while(1)
     {
-        printf("PTR REC BLOCK: %d\n", ptr_rec_block);
         if(feof(arq) != 0 || ptr_rec_block >= 64)
         {
             break;
@@ -1588,8 +1535,12 @@ void read_of(FILE *arq, double **vet)
                 if(value == 0)
                 {
                     zero_qt = extract_value(&buffer);
-                    // if(zero_qt == EOB)
-                    while(zero_qt > 0)
+                    if(zero_qt == EOB)
+                    {
+                        fread(&buffer, sizeof(unsigned long), 1, arq);
+                        zero_qt = extract_value(&buffer);
+                    }
+                    while(zero_qt > 0 && ptr_rec_block < 64)
                     {
                         rec_block[ptr_rec_block] = value;
                         ptr_rec_block++;
